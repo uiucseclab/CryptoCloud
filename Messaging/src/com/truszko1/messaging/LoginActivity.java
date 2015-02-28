@@ -10,6 +10,7 @@ import android.widget.TextView;
 
 public class LoginActivity extends Activity {
 
+	
 	protected TextView mSignupTextView;
 	
 	@Override
