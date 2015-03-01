@@ -64,7 +64,7 @@ public class EditFriendsActivity extends ListActivity {
 							android.R.layout.simple_list_item_checked,
 							usernames);
 					addFriendCheckmarks();
-					
+
 					setListAdapter(adapter);
 				} else {
 					Log.e(TAG, e.getMessage());
@@ -83,7 +83,6 @@ public class EditFriendsActivity extends ListActivity {
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// Inflate the menu; this adds items to the action bar if it is present.
-		getMenuInflater().inflate(R.menu.edit_friends, menu);
 		return true;
 	}
 
@@ -92,10 +91,6 @@ public class EditFriendsActivity extends ListActivity {
 		// Handle action bar item clicks here. The action bar will
 		// automatically handle clicks on the Home/Up button, so long
 		// as you specify a parent activity in AndroidManifest.xml.
-		int id = item.getItemId();
-		if (id == R.id.action_settings) {
-			return true;
-		}
 		return super.onOptionsItemSelected(item);
 	}
 
@@ -127,7 +122,8 @@ public class EditFriendsActivity extends ListActivity {
 							for (int i = 0; i < mUsers.size(); i++) {
 								ParseUser user = mUsers.get(i);
 								for (ParseUser friend : friends) {
-									if (friend.getObjectId().equals(user.getObjectId())){
+									if (friend.getObjectId().equals(
+											user.getObjectId())) {
 										getListView().setItemChecked(i, true);
 									}
 								}
