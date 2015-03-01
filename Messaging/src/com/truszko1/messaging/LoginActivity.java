@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.Window;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -26,6 +27,9 @@ public class LoginActivity extends Activity {
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+
+		requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS);
+
 		setContentView(R.layout.activity_login);
 
 		mSignupTextView = (TextView) findViewById(R.id.signupText);
@@ -58,10 +62,12 @@ public class LoginActivity extends Activity {
 					AlertDialog dialog = builder.create();
 					dialog.show();
 				} else {
+					setProgressBarIndeterminateVisibility(true);
 					ParseUser.logInInBackground(username, password,
 							new LogInCallback() {
 								public void done(ParseUser user,
 										ParseException e) {
+									setProgressBarIndeterminateVisibility(false);
 									if (user != null) {
 										Intent intent = new Intent(
 												LoginActivity.this,
@@ -74,7 +80,7 @@ public class LoginActivity extends Activity {
 												LoginActivity.this);
 										builder.setMessage(e.getMessage())
 												.setTitle(
-														R.string.signup_error_title)
+														R.string.login_error_title)
 												.setPositiveButton(
 														android.R.string.ok,
 														null);
