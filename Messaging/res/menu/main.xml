@@ -7,5 +7,6 @@
         android:showAsAction="collapseActionView"
         android:title="@string/menu_logout_label">
     </item>
+    <item android:id="@+id/action_edit_friends" android:title="@string/menu_edit_friends_label"></item>
 
 </menu>
