@@ -9,6 +9,7 @@ import android.support.v4.view.ViewPager;
 import android.view.Menu;
 import android.view.MenuItem;
 
+import com.parse.ParseInstallation;
 import com.parse.ParseUser;
 
 public class MainActivity extends FragmentActivity implements
