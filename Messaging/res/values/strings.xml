@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="app_name">SecureMessages</string>
+    <string name="app_name">Secure Messages</string>
     <string name="title_inbox">Inbox</string>
     <string name="title_friends">Friends</string>
     <string name="hello_world">Hello world!</string>
@@ -24,5 +24,14 @@
     <string name="menu_edit_friends_label">Edit Friends</string>
     <string name="title_activity_edit_friends">Edit Friends</string>
     <string name="error_title">Sorry, an error occurred!</string>
+    <string name="menu_camera_label">camera</string>
+    <string-array name="camera_choices">
+        <item >Take Picture</item>
+        <item >Take Video</item>
+        <item >Choose Picture</item>
+        <item >Choose Video</item>
+    </string-array>
+    <string name="error_external_storage">&quot;There was a problem acessing your device\'s external storage!&quot;</string>
+    <string name="error">Sorry, there was an error\!</string>
 
 </resources>
