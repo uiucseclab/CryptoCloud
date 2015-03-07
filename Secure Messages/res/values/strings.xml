@@ -25,16 +25,20 @@
     <string name="title_activity_edit_friends">Edit Friends</string>
     <string name="error_title">Sorry, an error occurred!</string>
     <string name="menu_camera_label">camera</string>
+
     <string-array name="camera_choices">
-        <item >Take Picture</item>
-        <item >Take Video</item>
-        <item >Choose Picture</item>
-        <item >Choose Video</item>
+        <item>Take Picture</item>
+        <item>Take Video</item>
+        <item>Choose Picture</item>
+        <item>Choose Video</item>
     </string-array>
+
     <string name="error_external_storage">&quot;There was a problem acessing your device\'s external storage!&quot;</string>
     <string name="error">Sorry, there was an error\!</string>
     <string name="video_file_size_warning">Selected video must be less than 10MB.</string>
     <string name="error_opening_file">There was a problem with the selected file.</string>
     <string name="error_file_size_too_large">The selected file is too large. Select a new file.</string>
+    <string name="title_activity_recipients">RecipientsActivity</string>
+    <string name="empty_recipients_list_message">Choose some friedds first!</string>
 
 </resources>

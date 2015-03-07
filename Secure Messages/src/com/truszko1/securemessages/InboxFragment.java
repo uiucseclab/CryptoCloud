@@ -1,12 +1,12 @@
 package com.truszko1.securemessages;
 
-import com.truszko1.messaging.R;
-
 import android.os.Bundle;
 import android.support.v4.app.ListFragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+
+import com.truszko1.securemessages.R;
 
 public class InboxFragment extends ListFragment {
 
@@ -15,6 +15,8 @@ public class InboxFragment extends ListFragment {
 			Bundle savedInstanceState) {
 		View rootView = inflater.inflate(R.layout.fragment_inbox, container,
 				false);
+
 		return rootView;
 	}
+
 }

@@ -2,18 +2,22 @@ package com.truszko1.securemessages;
 
 import java.util.Locale;
 
-import com.truszko1.messaging.R;
-
 import android.content.Context;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
 
-public class TabsPagerAdapter extends FragmentPagerAdapter {
+import com.truszko1.securemessages.R;
+
+/**
+ * A {@link FragmentPagerAdapter} that returns a fragment corresponding to one
+ * of the sections/tabs/pages.
+ */
+public class SectionsPagerAdapter extends FragmentPagerAdapter {
 
 	protected Context mContext;
 
-	public TabsPagerAdapter(Context context, FragmentManager fm) {
+	public SectionsPagerAdapter(Context context, FragmentManager fm) {
 		super(fm);
 		mContext = context;
 	}
@@ -50,5 +54,4 @@ public class TabsPagerAdapter extends FragmentPagerAdapter {
 		}
 		return null;
 	}
-
 }

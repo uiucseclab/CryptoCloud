@@ -7,8 +7,8 @@ import android.app.ListActivity;
 import android.os.Bundle;
 import android.support.v4.app.NavUtils;
 import android.util.Log;
+import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
 import android.view.Window;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
@@ -18,23 +18,21 @@ import com.parse.ParseException;
 import com.parse.ParseQuery;
 import com.parse.ParseRelation;
 import com.parse.ParseUser;
-import com.parse.SaveCallback;
 import com.truszko1.securemessages.R;
 
-public class EditFriendsActivity extends ListActivity {
+public class RecipientsActivity extends ListActivity {
+
+	public static final String TAG = RecipientsActivity.class.getSimpleName();
 
 	protected ParseRelation<ParseUser> mFriendsRelation;
 	protected ParseUser mCurrentUser;
-
-	public static final String TAG = EditFriendsActivity.class.getSimpleName();
-
-	protected List<ParseUser> mUsers;
+	protected List<ParseUser> mFriends;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS);
-		setContentView(R.layout.activity_edit_friends);
+		setContentView(R.layout.activity_recipients);
 		// Show the Up button in the action bar.
 		setupActionBar();
 
@@ -42,7 +40,7 @@ public class EditFriendsActivity extends ListActivity {
 	}
 
 	@Override
-	protected void onResume() {
+	public void onResume() {
 		super.onResume();
 
 		mCurrentUser = ParseUser.getCurrentUser();
@@ -51,34 +49,31 @@ public class EditFriendsActivity extends ListActivity {
 
 		setProgressBarIndeterminateVisibility(true);
 
-		ParseQuery<ParseUser> query = ParseUser.getQuery();
-		query.orderByAscending(ParseConstants.KEY_USERNAME);
-		query.setLimit(1000);
+		ParseQuery<ParseUser> query = mFriendsRelation.getQuery();
+		query.addAscendingOrder(ParseConstants.KEY_USERNAME);
 		query.findInBackground(new FindCallback<ParseUser>() {
 			@Override
-			public void done(List<ParseUser> users, ParseException e) {
+			public void done(List<ParseUser> friends, ParseException e) {
 				setProgressBarIndeterminateVisibility(false);
 
 				if (e == null) {
-					// Success
-					mUsers = users;
-					String[] usernames = new String[mUsers.size()];
+					mFriends = friends;
+
+					String[] usernames = new String[mFriends.size()];
 					int i = 0;
-					for (ParseUser user : mUsers) {
+					for (ParseUser user : mFriends) {
 						usernames[i] = user.getUsername();
 						i++;
 					}
 					ArrayAdapter<String> adapter = new ArrayAdapter<String>(
-							EditFriendsActivity.this,
+							getListView().getContext(),
 							android.R.layout.simple_list_item_checked,
 							usernames);
 					setListAdapter(adapter);
-
-					addFriendCheckmarks();
 				} else {
 					Log.e(TAG, e.getMessage());
 					AlertDialog.Builder builder = new AlertDialog.Builder(
-							EditFriendsActivity.this);
+							RecipientsActivity.this);
 					builder.setMessage(e.getMessage())
 							.setTitle(R.string.error_title)
 							.setPositiveButton(android.R.string.ok, null);
@@ -99,6 +94,13 @@ public class EditFriendsActivity extends ListActivity {
 	}
 
 	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		// Inflate the menu; this adds items to the action bar if it is present.
+		getMenuInflater().inflate(R.menu.recipients, menu);
+		return true;
+	}
+
+	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
 		case android.R.id.home:
@@ -115,49 +117,4 @@ public class EditFriendsActivity extends ListActivity {
 		return super.onOptionsItemSelected(item);
 	}
 
-	@Override
-	protected void onListItemClick(ListView l, View v, int position, long id) {
-		super.onListItemClick(l, v, position, id);
-
-		if (getListView().isItemChecked(position)) {
-			// add the friend
-			mFriendsRelation.add(mUsers.get(position));
-		} else {
-			// remove the friend
-			mFriendsRelation.remove(mUsers.get(position));
-		}
-
-		mCurrentUser.saveInBackground(new SaveCallback() {
-			@Override
-			public void done(ParseException e) {
-				if (e != null) {
-					Log.e(TAG, e.getMessage());
-				}
-			}
-		});
-	}
-
-	private void addFriendCheckmarks() {
-		mFriendsRelation.getQuery().findInBackground(
-				new FindCallback<ParseUser>() {
-					@Override
-					public void done(List<ParseUser> friends, ParseException e) {
-						if (e == null) {
-							// list returned - look for a match
-							for (int i = 0; i < mUsers.size(); i++) {
-								ParseUser user = mUsers.get(i);
-
-								for (ParseUser friend : friends) {
-									if (friend.getObjectId().equals(
-											user.getObjectId())) {
-										getListView().setItemChecked(i, true);
-									}
-								}
-							}
-						} else {
-							Log.e(TAG, e.getMessage());
-						}
-					}
-				});
-	}
 }

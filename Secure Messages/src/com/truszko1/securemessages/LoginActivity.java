@@ -5,7 +5,6 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.Window;
 import android.widget.Button;
@@ -15,31 +14,28 @@ import android.widget.TextView;
 import com.parse.LogInCallback;
 import com.parse.ParseException;
 import com.parse.ParseUser;
-import com.truszko1.messaging.R;
+import com.truszko1.securemessages.R;
 
 public class LoginActivity extends Activity {
-
-	protected TextView mSignupTextView;
 
 	protected EditText mUsername;
 	protected EditText mPassword;
 	protected Button mLoginButton;
 
+	protected TextView mSignUpTextView;
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-
 		requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS);
-
 		setContentView(R.layout.activity_login);
 
-		mSignupTextView = (TextView) findViewById(R.id.signupText);
-		mSignupTextView.setOnClickListener(new View.OnClickListener() {
-
+		mSignUpTextView = (TextView) findViewById(R.id.signupText);
+		mSignUpTextView.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
 				Intent intent = new Intent(LoginActivity.this,
-						SignupActivity.class);
+						SignUpActivity.class);
 				startActivity(intent);
 			}
 		});
@@ -48,11 +44,13 @@ public class LoginActivity extends Activity {
 		mPassword = (EditText) findViewById(R.id.passwordField);
 		mLoginButton = (Button) findViewById(R.id.loginButton);
 		mLoginButton.setOnClickListener(new View.OnClickListener() {
-
 			@Override
 			public void onClick(View v) {
-				String username = mUsername.getText().toString().trim();
-				String password = mPassword.getText().toString().trim();
+				String username = mUsername.getText().toString();
+				String password = mPassword.getText().toString();
+
+				username = username.trim();
+				password = password.trim();
 
 				if (username.isEmpty() || password.isEmpty()) {
 					AlertDialog.Builder builder = new AlertDialog.Builder(
@@ -63,13 +61,18 @@ public class LoginActivity extends Activity {
 					AlertDialog dialog = builder.create();
 					dialog.show();
 				} else {
+					// Login
 					setProgressBarIndeterminateVisibility(true);
+
 					ParseUser.logInInBackground(username, password,
 							new LogInCallback() {
+								@Override
 								public void done(ParseUser user,
 										ParseException e) {
 									setProgressBarIndeterminateVisibility(false);
-									if (user != null) {
+
+									if (e == null) {
+										// Success!
 										Intent intent = new Intent(
 												LoginActivity.this,
 												MainActivity.class);
@@ -91,7 +94,6 @@ public class LoginActivity extends Activity {
 								}
 							});
 				}
-
 			}
 		});
 	}
@@ -103,15 +105,4 @@ public class LoginActivity extends Activity {
 		return true;
 	}
 
-	@Override
-	public boolean onOptionsItemSelected(MenuItem item) {
-		// Handle action bar item clicks here. The action bar will
-		// automatically handle clicks on the Home/Up button, so long
-		// as you specify a parent activity in AndroidManifest.xml.
-		int id = item.getItemId();
-		if (id == R.id.action_settings) {
-			return true;
-		}
-		return super.onOptionsItemSelected(item);
-	}
 }

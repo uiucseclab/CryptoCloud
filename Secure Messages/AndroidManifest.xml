@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.truszko1.messaging"
+    package="com.truszko1.securemessages"
     android:versionCode="10"
     android:versionName="0.2" >
 
@@ -21,15 +21,18 @@
   to match your app's package name + ".permission.C2D_MESSAGE".
     -->
     <permission
-        android:name="com.truszko1.messaging.permission.C2D_MESSAGE"
+        android:name="com.truszko1.securemessages.permission.C2D_MESSAGE"
         android:protectionLevel="signature" />
 
-    <uses-permission android:name="com.truszko1.messaging.permission.C2D_MESSAGE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-    <uses-feature android:name="android.hardware.camera" android:required="true"/>
+    <uses-permission android:name="com.truszko1.securemessages.permission.C2D_MESSAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="true" />
 
     <application
-        android:name="com.truszko1.securemessages.MessaingApplication"
+        android:name="com.truszko1.securemessages.SecureMessagesApplication"
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
@@ -81,7 +84,7 @@
                 <action android:name="com.google.android.c2dm.intent.REGISTRATION" />
 
                 <!-- IMPORTANT: Change "com.parse.starter" to match your app's package name. -->
-                <category android:name="com.truszko1.messaging" />
+                <category android:name="com.truszko1.securemessages" />
             </intent-filter>
         </receiver>
 
@@ -92,7 +95,15 @@
             android:screenOrientation="portrait" >
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
-                android:value="com.truszko1.messaging.MainActivity" />
+                android:value="com.truszko1.securemessages.MainActivity" />
+        </activity>
+        <activity
+            android:name="com.truszko1.securemessages.RecipientsActivity"
+            android:label="@string/title_activity_recipients"
+            android:screenOrientation="portrait" >
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="com.truszko1.securemessages.MainActivity" />
         </activity>
     </application>
 

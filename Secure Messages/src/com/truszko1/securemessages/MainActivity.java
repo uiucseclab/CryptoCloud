@@ -22,10 +22,11 @@ import android.support.v4.view.ViewPager;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.Window;
 import android.widget.Toast;
 
 import com.parse.ParseUser;
-import com.truszko1.messaging.R;
+import com.truszko1.securemessages.R;
 
 public class MainActivity extends FragmentActivity implements
 		ActionBar.TabListener {
@@ -40,7 +41,7 @@ public class MainActivity extends FragmentActivity implements
 	public static final int MEDIA_TYPE_IMAGE = 4;
 	public static final int MEDIA_TYPE_VIDEO = 5;
 
-	public static final int FILE_SIZE_LIMIT = 1024 * 1024 * 10; // 10MB
+	public static final int FILE_SIZE_LIMIT = 1024 * 1024 * 10; // 10 MB
 
 	protected Uri mMediaUri;
 
@@ -162,7 +163,7 @@ public class MainActivity extends FragmentActivity implements
 	 * intensive, it may be best to switch to a
 	 * {@link android.support.v4.app.FragmentStatePagerAdapter}.
 	 */
-	TabsPagerAdapter mTabsPagerAdapter;
+	SectionsPagerAdapter mSectionsPagerAdapter;
 
 	/**
 	 * The {@link ViewPager} that will host the section contents.
@@ -172,6 +173,7 @@ public class MainActivity extends FragmentActivity implements
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+		requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS);
 		setContentView(R.layout.activity_main);
 
 		ParseUser currentUser = ParseUser.getCurrentUser();
@@ -187,12 +189,12 @@ public class MainActivity extends FragmentActivity implements
 
 		// Create the adapter that will return a fragment for each of the three
 		// primary sections of the app.
-		mTabsPagerAdapter = new TabsPagerAdapter(this,
+		mSectionsPagerAdapter = new SectionsPagerAdapter(this,
 				getSupportFragmentManager());
 
 		// Set up the ViewPager with the sections adapter.
 		mViewPager = (ViewPager) findViewById(R.id.pager);
-		mViewPager.setAdapter(mTabsPagerAdapter);
+		mViewPager.setAdapter(mSectionsPagerAdapter);
 
 		// When swiping between different sections, select the corresponding
 		// tab. We can also use ActionBar.Tab#select() to do this if we have
@@ -206,13 +208,13 @@ public class MainActivity extends FragmentActivity implements
 				});
 
 		// For each of the sections in the app, add a tab to the action bar.
-		for (int i = 0; i < mTabsPagerAdapter.getCount(); i++) {
+		for (int i = 0; i < mSectionsPagerAdapter.getCount(); i++) {
 			// Create a tab with text corresponding to the page title defined by
 			// the adapter. Also specify this Activity object, which implements
 			// the TabListener interface, as the callback (listener) for when
 			// this tab is selected.
 			actionBar.addTab(actionBar.newTab()
-					.setText(mTabsPagerAdapter.getPageTitle(i))
+					.setText(mSectionsPagerAdapter.getPageTitle(i))
 					.setTabListener(this));
 		}
 	}
@@ -222,7 +224,6 @@ public class MainActivity extends FragmentActivity implements
 		super.onActivityResult(requestCode, resultCode, data);
 
 		if (resultCode == RESULT_OK) {
-
 			if (requestCode == PICK_PHOTO_REQUEST
 					|| requestCode == PICK_VIDEO_REQUEST) {
 				if (data == null) {
@@ -232,10 +233,12 @@ public class MainActivity extends FragmentActivity implements
 					mMediaUri = data.getData();
 				}
 
+				Log.i(TAG, "Media URI: " + mMediaUri);
 				if (requestCode == PICK_VIDEO_REQUEST) {
+					// make sure the file is less than 10 MB
 					int fileSize = 0;
-
 					InputStream inputStream = null;
+
 					try {
 						inputStream = getContentResolver().openInputStream(
 								mMediaUri);
@@ -251,10 +254,7 @@ public class MainActivity extends FragmentActivity implements
 					} finally {
 						try {
 							inputStream.close();
-						} catch (IOException e) {
-							Toast.makeText(this, R.string.error_opening_file,
-									Toast.LENGTH_LONG).show();
-							return;
+						} catch (IOException e) { /* Intentionally blank */
 						}
 					}
 
@@ -271,9 +271,12 @@ public class MainActivity extends FragmentActivity implements
 				mediaScanIntent.setData(mMediaUri);
 				sendBroadcast(mediaScanIntent);
 			}
+
+			Intent recipientsIntent = new Intent(this, RecipientsActivity.class);
+			recipientsIntent.setData(mMediaUri);
+			startActivity(recipientsIntent);
 		} else if (resultCode != RESULT_CANCELED) {
-			Toast.makeText(MainActivity.this, R.string.error, Toast.LENGTH_LONG)
-					.show();
+			Toast.makeText(this, R.string.error, Toast.LENGTH_LONG).show();
 		}
 	}
 
@@ -299,17 +302,14 @@ public class MainActivity extends FragmentActivity implements
 		case R.id.action_logout:
 			ParseUser.logOut();
 			navigateToLogin();
-			break;
 		case R.id.action_edit_friends:
 			Intent intent = new Intent(this, EditFriendsActivity.class);
 			startActivity(intent);
-			break;
 		case R.id.action_camera:
 			AlertDialog.Builder builder = new AlertDialog.Builder(this);
 			builder.setItems(R.array.camera_choices, mDialogListener);
 			AlertDialog dialog = builder.create();
 			dialog.show();
-			break;
 		}
 
 		return super.onOptionsItemSelected(item);
