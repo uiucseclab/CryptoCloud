@@ -1,4 +1,6 @@
-package com.truszko1.messaging;
+package com.truszko1.securemessages;
+
+import com.truszko1.messaging.R;
 
 import android.os.Bundle;
 import android.support.v4.app.ListFragment;

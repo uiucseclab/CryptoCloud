@@ -1,4 +1,4 @@
-package com.truszko1.messaging;
+package com.truszko1.securemessages;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -14,6 +14,7 @@ import android.widget.EditText;
 import com.parse.ParseException;
 import com.parse.ParseUser;
 import com.parse.SignUpCallback;
+import com.truszko1.messaging.R;
 
 public class SignupActivity extends Activity {
 

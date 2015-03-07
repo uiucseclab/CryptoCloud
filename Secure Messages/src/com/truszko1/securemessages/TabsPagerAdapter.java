@@ -1,6 +1,8 @@
-package com.truszko1.messaging;
+package com.truszko1.securemessages;
 
 import java.util.Locale;
+
+import com.truszko1.messaging.R;
 
 import android.content.Context;
 import android.support.v4.app.Fragment;

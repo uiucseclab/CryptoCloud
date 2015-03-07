@@ -1,4 +1,4 @@
-package com.truszko1.messaging;
+package com.truszko1.securemessages;
 
 public final class ParseConstants {
 	public static final String KEY_USERNAME = "username";

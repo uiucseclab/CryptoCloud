@@ -1,4 +1,4 @@
-package com.truszko1.messaging;
+package com.truszko1.securemessages;
 
 import java.util.List;
 
@@ -16,6 +16,7 @@ import com.parse.ParseException;
 import com.parse.ParseQuery;
 import com.parse.ParseRelation;
 import com.parse.ParseUser;
+import com.truszko1.messaging.R;
 
 public class FriendsFragment extends ListFragment {
 

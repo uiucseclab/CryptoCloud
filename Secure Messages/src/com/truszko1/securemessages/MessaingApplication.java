@@ -1,4 +1,4 @@
-package com.truszko1.messaging;
+package com.truszko1.securemessages;
 
 import android.app.Application;
 import com.parse.Parse;

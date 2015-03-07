@@ -1,4 +1,4 @@
-package com.truszko1.messaging;
+package com.truszko1.securemessages;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
@@ -22,6 +22,7 @@ import android.view.MenuItem;
 import android.widget.Toast;
 
 import com.parse.ParseUser;
+import com.truszko1.messaging.R;
 
 public class MainActivity extends FragmentActivity implements
 		ActionBar.TabListener {
