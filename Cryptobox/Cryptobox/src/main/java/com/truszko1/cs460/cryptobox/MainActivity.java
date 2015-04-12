@@ -218,11 +218,12 @@ public class MainActivity extends Activity implements OnClickListener,
                 final byte[] byteArray = stream.toByteArray();
 
 
-                String str = byteArray.toString();
-                byte[] b = str.getBytes("UTF-8");
+                // save the file
+                MediaStore.Images.Media.insertImage(getContentResolver(), BitmapFactory.decodeByteArray(byteArray, 0, byteArray.length), "meh", "nlah");
 
-                imageBitmap = BitmapFactory.decodeByteArray(b, 0, b.length);
-
+                //TODO: change the encryption method so that it handles the byte arrays, and not strings
+                //TODO: save the encrypted byte array to file
+                //TODO: read the byte array from file, decrypt it and...pray for the best!
                 imgView.setImageBitmap(imageBitmap);
 
 
