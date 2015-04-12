@@ -168,7 +168,7 @@ public class Crypto {
         return b;
     }
 
-    public static String encryptPkcs12(String plaintext, SecretKey key,
+    public static String encryptPkcs12(byte[] plaintext, SecretKey key,
                                        byte[] salt) {
         try {
             Cipher cipher = Cipher.getInstance(CIPHER_ALGORITHM);
@@ -177,18 +177,16 @@ public class Crypto {
                     ITERATION_COUNT);
             cipher.init(Cipher.ENCRYPT_MODE, key, pbeSpec);
             Log.d(TAG, "Cipher IV: " + toHex(cipher.getIV()));
-            byte[] cipherText = cipher.doFinal(plaintext.getBytes("UTF-8"));
+            byte[] cipherText = cipher.doFinal(plaintext);
 
             return String.format("%s%s%s", toBase64(salt), DELIMITER,
                     toBase64(cipherText));
         } catch (GeneralSecurityException e) {
             throw new RuntimeException(e);
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
         }
     }
 
-    public static String encrypt(String plaintext, SecretKey key, byte[] salt) {
+    public static String encrypt(byte[] plaintext, SecretKey key, byte[] salt) {
         try {
             Cipher cipher = Cipher.getInstance(CIPHER_ALGORITHM);
 
@@ -198,7 +196,7 @@ public class Crypto {
             cipher.init(Cipher.ENCRYPT_MODE, key, ivParams);
             Log.d(TAG, "Cipher IV: "
                     + (cipher.getIV() == null ? null : toHex(cipher.getIV())));
-            byte[] cipherText = cipher.doFinal(plaintext.getBytes("UTF-8"));
+            byte[] cipherText = cipher.doFinal(plaintext);
 
             if (salt != null) {
                 return String.format("%s%s%s%s%s", toBase64(salt), DELIMITER,
@@ -208,8 +206,6 @@ public class Crypto {
             return String.format("%s%s%s", toBase64(iv), DELIMITER,
                     toBase64(cipherText));
         } catch (GeneralSecurityException e) {
-            throw new RuntimeException(e);
-        } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }
     }

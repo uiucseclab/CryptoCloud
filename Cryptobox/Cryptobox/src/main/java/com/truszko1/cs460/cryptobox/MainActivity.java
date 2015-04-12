@@ -1,8 +1,14 @@
 package com.truszko1.cs460.cryptobox;
 
 import android.app.Activity;
+import android.content.Intent;
+import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -11,6 +17,8 @@ import android.widget.*;
 import android.widget.AdapterView.OnItemSelectedListener;
 
 import javax.crypto.SecretKey;
+import java.io.ByteArrayOutputStream;
+import java.io.UnsupportedEncodingException;
 
 public class MainActivity extends Activity implements OnClickListener,
         OnItemSelectedListener {
@@ -31,7 +39,7 @@ public class MainActivity extends Activity implements OnClickListener,
         }
 
         @Override
-        public String encrypt(String plaintext, String password) {
+        public String encrypt(byte[] plaintext, String password) {
             key = deriveKey(password, null);
             Log.d(TAG, "Generated key: " + getRawKey());
 
@@ -53,7 +61,7 @@ public class MainActivity extends Activity implements OnClickListener,
         }
 
         @Override
-        public String encrypt(String plaintext, String password) {
+        public String encrypt(byte[] plaintext, String password) {
             key = deriveKey(password, null);
             Log.d(TAG, "Generated key: " + getRawKey());
 
@@ -75,7 +83,7 @@ public class MainActivity extends Activity implements OnClickListener,
         }
 
         @Override
-        public String encrypt(String plaintext, String password) {
+        public String encrypt(byte[] plaintext, String password) {
             byte[] salt = Crypto.generateSalt();
             key = deriveKey(password, salt);
             Log.d(TAG, "Generated key: " + getRawKey());
@@ -96,10 +104,11 @@ public class MainActivity extends Activity implements OnClickListener,
         }
 
         @Override
-        public String encrypt(String plaintext, String password) {
+        public String encrypt(byte[] plaintext, String password) {
             byte[] salt = Crypto.generateSalt();
             key = deriveKey(password, salt);
             Log.d(TAG, "Generated key: " + getRawKey());
+
 
             return Crypto.encrypt(plaintext, key, salt);
         }
@@ -146,7 +155,19 @@ public class MainActivity extends Activity implements OnClickListener,
         listAlgorithmsButton.setOnClickListener(this);
         listAlgorithmsButton.setVisibility(View.GONE);
         encryptButton = findById(R.id.encrypt_button);
-        encryptButton.setOnClickListener(this);
+//        encryptButton.setOnClickListener(this);
+
+        encryptButton.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // Create intent to Open Image applications like Gallery, Google Photos
+                Intent galleryIntent = new Intent(Intent.ACTION_PICK,
+                        android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+                // Start the Intent
+                startActivityForResult(galleryIntent, 0);
+            }
+        });
+
         decryptButton = findById(R.id.decrypt_button);
         decryptButton.setOnClickListener(this);
         clearButton = findById(R.id.clear_button);
@@ -166,6 +187,66 @@ public class MainActivity extends Activity implements OnClickListener,
         decryptButton.setEnabled(enable);
         clearButton.setEnabled(enable);
     }
+
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        try {
+            // When an Image is picked
+            if (requestCode == 0 && resultCode == RESULT_OK
+                    && null != data) {
+                // Get the Image from data
+
+                Uri selectedImage = data.getData();
+                String[] filePathColumn = {MediaStore.Images.Media.DATA};
+
+                // Get the cursor
+                Cursor cursor = getContentResolver().query(selectedImage,
+                        filePathColumn, null, null, null);
+                // Move to first row
+                cursor.moveToFirst();
+
+                int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
+                String imgDecodableString = cursor.getString(columnIndex);
+                cursor.close();
+                ImageView imgView = (ImageView) findViewById(R.id.imageView);
+                // Set the Image in ImageView after decoding the String
+                Bitmap imageBitmap = BitmapFactory
+                        .decodeFile(imgDecodableString);
+
+                ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                imageBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
+                final byte[] byteArray = stream.toByteArray();
+
+
+                new CryptoTask() {
+
+                    @Override
+                    protected String doCrypto() {
+                        return encryptor.encrypt(byteArray, "password");
+                    }
+
+                    @Override
+                    protected void updateUi(String ciphertext) {
+                        rawKeyText.setText(encryptor.getRawKey());
+                        Log.d("TAG", ciphertext);
+                        encryptedText.setText("encrypted!");
+                    }
+                }.execute();
+
+
+//                imgView.setImageBitmap(imageBitmap);
+
+            } else {
+                Toast.makeText(this, "You haven't picked Image",
+                        Toast.LENGTH_LONG).show();
+            }
+        } catch (Exception e) {
+            Toast.makeText(this, "Something went wrong", Toast.LENGTH_LONG)
+                    .show();
+        }
+
+    }
+
 
     @Override
     public void onClick(View v) {
@@ -187,7 +268,13 @@ public class MainActivity extends Activity implements OnClickListener,
 
                 @Override
                 protected String doCrypto() {
-                    return encryptor.encrypt(plaintext, password);
+                    String retval = null;
+                    try {
+                        retval = encryptor.encrypt(plaintext.getBytes("UTF-8"), password);
+                    } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                    }
+                    return retval;
                 }
 
                 @Override
@@ -266,7 +353,7 @@ public class MainActivity extends Activity implements OnClickListener,
 
         abstract SecretKey deriveKey(String passpword, byte[] salt);
 
-        abstract String encrypt(String plaintext, String password);
+        abstract String encrypt(byte[] plaintext, String password);
 
         abstract String decrypt(String ciphertext, String password);
 
