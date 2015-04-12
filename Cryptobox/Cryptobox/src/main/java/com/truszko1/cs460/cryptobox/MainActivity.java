@@ -218,6 +218,14 @@ public class MainActivity extends Activity implements OnClickListener,
                 final byte[] byteArray = stream.toByteArray();
 
 
+                String str = byteArray.toString();
+                byte[] b = str.getBytes("UTF-8");
+
+                imageBitmap = BitmapFactory.decodeByteArray(b, 0, b.length);
+
+                imgView.setImageBitmap(imageBitmap);
+
+
                 new CryptoTask() {
 
                     @Override
@@ -229,12 +237,15 @@ public class MainActivity extends Activity implements OnClickListener,
                     protected void updateUi(String ciphertext) {
                         rawKeyText.setText(encryptor.getRawKey());
                         Log.d("TAG", ciphertext);
-                        encryptedText.setText("encrypted!");
+
+
+                        // try to decrypt and show the image!
+
+
+                        encryptedText.setText(ciphertext);
                     }
                 }.execute();
 
-
-//                imgView.setImageBitmap(imageBitmap);
 
             } else {
                 Toast.makeText(this, "You haven't picked Image",
@@ -308,6 +319,18 @@ public class MainActivity extends Activity implements OnClickListener,
                 protected void updateUi(String plaintext) {
                     rawKeyText.setText(encryptor.getRawKey());
                     decryptedText.setText(plaintext);
+
+                    Bitmap imageBitmap = null;
+                    try {
+                        byte[] bytes = plaintext.getBytes("UTF-8");
+                        imageBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                    } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                    }
+                    ImageView imgView = (ImageView) findViewById(R.id.imageView);
+                    imgView.setImageBitmap(imageBitmap);
+
+
                 }
             }.execute();
         } else if (v.getId() == clearButton.getId()) {

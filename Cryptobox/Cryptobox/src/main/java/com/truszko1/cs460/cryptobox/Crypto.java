@@ -252,8 +252,9 @@ public class Crypto {
             cipher.init(Cipher.DECRYPT_MODE, key, ivParams);
             Log.d(TAG, "Cipher IV: " + toHex(cipher.getIV()));
             byte[] plaintext = cipher.doFinal(cipherBytes);
+            String plainrStr = new String(plaintext, "UTF-8");
 
-            return new String(plaintext, "UTF-8");
+            return plainrStr;
         } catch (GeneralSecurityException e) {
             throw new RuntimeException(e);
         } catch (UnsupportedEncodingException e) {
