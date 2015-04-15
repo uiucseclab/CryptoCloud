@@ -10,6 +10,7 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.util.Base64;
 import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -18,7 +19,6 @@ import android.widget.*;
 import android.widget.AdapterView.OnItemSelectedListener;
 
 import javax.crypto.SecretKey;
-import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.util.Random;
 
@@ -30,6 +30,7 @@ public class MainActivity extends Activity implements OnClickListener,
     private static final String TAG = MainActivity.class.getSimpleName();
     private static final String MESSAGE = "Secret message!";
     private static final int PBKDF2_ENC_IDX = 0;
+    private static String DELIMITER = "]";
     private final Encryptor PBKDF2_ENCRYPTOR = new Encryptor() {
 
         @Override
@@ -38,7 +39,7 @@ public class MainActivity extends Activity implements OnClickListener,
         }
 
         @Override
-        public String encrypt(byte[] plaintext, String password) {
+        public byte[][] encrypt(byte[] plaintext, String password) {
             byte[] salt = Crypto.generateSalt();
             key = deriveKey(password, salt);
             Log.d(TAG, "Generated key: " + getRawKey());
@@ -48,8 +49,8 @@ public class MainActivity extends Activity implements OnClickListener,
         }
 
         @Override
-        public String decrypt(String ciphertext, String password) {
-            return Crypto.decryptPbkdf2(ciphertext, password);
+        public byte[][] decrypt(byte[][] encryptedInfo, String password) {
+            return Crypto.decryptPbkdf2(encryptedInfo, password);
         }
     };
     private Spinner derivationMethodSpinner;
@@ -102,6 +103,14 @@ public class MainActivity extends Activity implements OnClickListener,
         Bitmap bmOut = Bitmap.createBitmap(width, height, source.getConfig());
         bmOut.setPixels(pixels, 0, width, 0, 0, width, height);
         return bmOut;
+    }
+
+    public static byte[] fromBase64(String base64) {
+        return Base64.decode(base64, Base64.NO_WRAP);
+    }
+
+    public static String toBase64(byte[] bytes) {
+        return Base64.encodeToString(bytes, Base64.NO_WRAP);
     }
 
     /**
@@ -183,76 +192,117 @@ public class MainActivity extends Activity implements OnClickListener,
                 int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
                 String imgDecodableString = cursor.getString(columnIndex);
                 cursor.close();
-                ImageView imgView = (ImageView) findViewById(R.id.imageView);
+                final ImageView imgView = (ImageView) findViewById(R.id.imageView);
 
                 // 1. get the original image from disk
-                Bitmap imageBitmap = BitmapFactory.decodeFile(imgDecodableString);
+                final Bitmap[] imageBitmap = {BitmapFactory.decodeFile(imgDecodableString)};
 
                 // 2. convert the image into a byte array
-                ByteBuffer buffer = ByteBuffer.allocate(imageBitmap.getByteCount());
-                imageBitmap.copyPixelsToBuffer(buffer);
+                final ByteBuffer[] buffer = {ByteBuffer.allocate(imageBitmap[0].getByteCount())};
+                imageBitmap[0].copyPixelsToBuffer(buffer[0]);
 
-                int width = imageBitmap.getWidth();
-                int height = imageBitmap.getHeight();
-                imageBitmap.recycle();
+                final int width = imageBitmap[0].getWidth();
+                final int height = imageBitmap[0].getHeight();
+                imageBitmap[0].recycle();
 
-                byte[] imageBytes = buffer.array();
-
-                // 3. encrypt the byte array
-                long starttime = System.currentTimeMillis();
-                encryptImage(imageBytes); // add 125 to each byte element
-                long endtime = System.currentTimeMillis();
-                Log.d(TAG, "encryption time:" + (endtime - starttime) / 1000 + "." + (endtime - starttime) % 1000);
-                // 4. create a new Bitmap from the encrypted byte array
-                imageBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-                ByteBuffer outputbuffer = ByteBuffer.wrap(imageBytes);
-                imageBitmap.copyPixelsFromBuffer(outputbuffer);
-
-                // now, we read the image from disk and try to recover it!
-                // imageBitmap will contain that image
-
-                // 5. convert the bitmap to byte array
-                buffer = ByteBuffer.allocate(imageBitmap.getByteCount());
-                imageBitmap.copyPixelsToBuffer(buffer);
-                width = imageBitmap.getWidth();
-                height = imageBitmap.getHeight();
-                imageBitmap.recycle();
-                imageBytes = buffer.array();
-
-                // 6. decrypt image
-                starttime = System.currentTimeMillis();
-                decryptImage(imageBytes);
-                endtime = System.currentTimeMillis();
-                Log.d(TAG, "encryption time:" + (endtime - starttime) / 1000 + "." + (endtime - starttime) % 1000);
-
-                // 7. create a new Bitmap from the decrypted byte array
-                imageBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-                outputbuffer = ByteBuffer.wrap(imageBytes);
-                imageBitmap.copyPixelsFromBuffer(outputbuffer);
-
-                // 8. show the image
-                imgView.setImageBitmap(imageBitmap);
-
-
-//                new CryptoTask() {
+                final byte[] originalImageBytes = buffer[0].array();
 //
-//                    @Override
-//                    protected String doCrypto() {
-//                        return encryptor.encrypt(imageBytes, "password");
-//                    }
+//                // 3. encrypt the byte array
+//                long starttime = System.currentTimeMillis();
+////                encryptImage(originalImageBytes); // add 125 to each byte element
+//                long endtime = System.currentTimeMillis();
+//                Log.d(TAG, "creating image time:" + (endtime - starttime) / 1000 + "." + (endtime - starttime) % 1000);
+//                // 4. create a new Bitmap from the encrypted byte array
+//                imageBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+//                ByteBuffer outputbuffer = ByteBuffer.wrap(originalImageBytes);
+//                imageBitmap.copyPixelsFromBuffer(outputbuffer);
+
+//                // now, we read the image from disk and try to recover it!
+//                // imageBitmap will contain that image
 //
-//                    @Override
-//                    protected void updateUi(String ciphertext) {
-//                        rawKeyText.setText(encryptor.getRawKey());
-////                        Log.d("TAG", ciphertext);
+//                // 5. convert the bitmap to byte array
+//                buffer = ByteBuffer.allocate(imageBitmap.getByteCount());
+//                imageBitmap.copyPixelsToBuffer(buffer);
+//                width = imageBitmap.getWidth();
+//                height = imageBitmap.getHeight();
+//                imageBitmap.recycle();
+//                final byte[] finalImageBytes = buffer.array();
+//
+//                // 6. decrypt image
+//                starttime = System.currentTimeMillis();
+////                decryptImage(finalImageBytes);
+//                endtime = System.currentTimeMillis();
+//                Log.d(TAG, "creating image time:" + (endtime - starttime) / 1000 + "." + (endtime - starttime) % 1000);
+//
+//                // 7. create a new Bitmap from the decrypted byte array
+//                imageBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+//                outputbuffer = ByteBuffer.wrap(finalImageBytes);
+//                imageBitmap.copyPixelsFromBuffer(outputbuffer);
+//
+//                // 8. show the image
+//                imgView.setImageBitmap(imageBitmap);
+
+                final long[] start = new long[1];
+                final long[] end = new long[1];
+
+                new CryptoTask() {
+
+                    @Override
+                    protected byte[][] doCrypto() {
+                        start[0] = System.currentTimeMillis();
+                        return encryptor.encrypt(originalImageBytes, "password");
+                    }
+
+                    @Override
+                    protected void updateUi(final byte[][] encryptedInfo) {
+                        end[0] = System.currentTimeMillis();
+                        Log.d(TAG, "encryption time:" + (end[0] - start[0]) / 1000 + "." + (end[0] - start[0]) % 1000);
+
+                        rawKeyText.setText(encryptor.getRawKey());
+                        encryptedText.setText("meh");
+
+                        String saltInBase64 = toBase64(encryptedInfo[0]);
+                        String ivInBase64 = toBase64(encryptedInfo[1]);
+                        String ciphertextInBase64 = toBase64(encryptedInfo[2]);
+
+                        Log.d(TAG, "salt + iv:" + saltInBase64 + "     " + ivInBase64);
+                        Log.d(TAG, "cipherBytes:" + ciphertextInBase64);
+
+                        // display the encrypted image
+                        imageBitmap[0] = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+                        buffer[0] = ByteBuffer.wrap(encryptedInfo[2]);
+                        imageBitmap[0].copyPixelsFromBuffer(buffer[0]);
+
+                        // 8. show the image
+                        imgView.setImageBitmap(imageBitmap[0]);
+
+
+                        // decrypt
+
+//                        new CryptoTask() {
+//
+//                            @Override
+//                            protected byte[][] doCrypto() {
+//                                return encryptor.decrypt(encryptedInfo, "password");
+//                            }
+//
+//                            protected void updateUi(byte[][] encryptedInfo) {
+//                                byte[] imageBytes = encryptedInfo[0];
+//                                rawKeyText.setText(encryptor.getRawKey());
+////                                decryptedText.setText(plaintext);
+//
+//                                Bitmap imageBitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
+//
+//                                ImageView imgView = (ImageView) findViewById(R.id.imageView);
+//                                imgView.setImageBitmap(imageBitmap);
 //
 //
-//                        // try to decrypt and show the image!
-//
-//
-//                        encryptedText.setText("meh");
-//                    }
-//                }.execute();
+//                            }
+//                        }.execute();
+
+
+                    }
+                }.execute();
 
 
             } else {
@@ -291,81 +341,81 @@ public class MainActivity extends Activity implements OnClickListener,
 
     @Override
     public void onClick(View v) {
-        if (v.getId() == listAlgorithmsButton.getId()) {
-            Crypto.listAlgorithms("PB");
-        } else if (v.getId() == encryptButton.getId()) {
-            final String password = passwordText.getText().toString().trim();
-            if (password.length() == 0) {
-                Toast.makeText(this, "Please enter a password.",
-                        Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            final String plaintext = String.format("%s %s",
-                    derivationMethodSpinner.getSelectedItem().toString(),
-                    MESSAGE);
-
-            new CryptoTask() {
-
-                @Override
-                protected String doCrypto() {
-                    String retval = null;
-                    try {
-                        retval = encryptor.encrypt(plaintext.getBytes("UTF-8"), password);
-                    } catch (UnsupportedEncodingException e) {
-                        e.printStackTrace();
-                    }
-                    return retval;
-                }
-
-                @Override
-                protected void updateUi(String ciphertext) {
-                    rawKeyText.setText(encryptor.getRawKey());
-                    encryptedText.setText(ciphertext);
-                }
-            }.execute();
-        } else if (v.getId() == decryptButton.getId()) {
-            final String password = passwordText.getText().toString().trim();
-            if (password.length() == 0) {
-                Toast.makeText(this, "Please enter a password.",
-                        Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            final String ciphertext = encryptedText.getText().toString().trim();
-            if (ciphertext.length() == 0) {
-                Toast.makeText(this, "No text to decrypt.", Toast.LENGTH_SHORT)
-                        .show();
-                return;
-            }
-
-            new CryptoTask() {
-
-                @Override
-                protected String doCrypto() {
-                    return encryptor.decrypt(ciphertext, password);
-                }
-
-                protected void updateUi(String plaintext) {
-                    rawKeyText.setText(encryptor.getRawKey());
-                    decryptedText.setText(plaintext);
-
-                    Bitmap imageBitmap = null;
-                    try {
-                        byte[] bytes = plaintext.getBytes("UTF-8");
-                        imageBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-                    } catch (UnsupportedEncodingException e) {
-                        e.printStackTrace();
-                    }
-                    ImageView imgView = (ImageView) findViewById(R.id.imageView);
-                    imgView.setImageBitmap(imageBitmap);
-
-
-                }
-            }.execute();
-        } else if (v.getId() == clearButton.getId()) {
-            clear();
-        }
+//        if (v.getId() == listAlgorithmsButton.getId()) {
+//            Crypto.listAlgorithms("PB");
+//        } else if (v.getId() == encryptButton.getId()) {
+//            final String password = passwordText.getText().toString().trim();
+//            if (password.length() == 0) {
+//                Toast.makeText(this, "Please enter a password.",
+//                        Toast.LENGTH_SHORT).show();
+//                return;
+//            }
+//
+//            final String plaintext = String.format("%s %s",
+//                    derivationMethodSpinner.getSelectedItem().toString(),
+//                    MESSAGE);
+//
+//            new CryptoTask() {
+//
+//                @Override
+//                protected byte[] doCrypto() {
+//                    String retval = null;
+//                    try {
+//                        retval = encryptor.encrypt(plaintext.getBytes("UTF-8"), password);
+//                    } catch (UnsupportedEncodingException e) {
+//                        e.printStackTrace();
+//                    }
+//                    return retval;
+//                }
+//
+//                @Override
+//                protected void updateUi(String ciphertext) {
+//                    rawKeyText.setText(encryptor.getRawKey());
+//                    encryptedText.setText(ciphertext);
+//                }
+//            }.execute();
+//        } else if (v.getId() == decryptButton.getId()) {
+//            final String password = passwordText.getText().toString().trim();
+//            if (password.length() == 0) {
+//                Toast.makeText(this, "Please enter a password.",
+//                        Toast.LENGTH_SHORT).show();
+//                return;
+//            }
+//
+//            final String ciphertext = encryptedText.getText().toString().trim();
+//            if (ciphertext.length() == 0) {
+//                Toast.makeText(this, "No text to decrypt.", Toast.LENGTH_SHORT)
+//                        .show();
+//                return;
+//            }
+//
+//            new CryptoTask() {
+//
+//                @Override
+//                protected byte[] doCrypto() {
+//                    return encryptor.decrypt(ciphertext, password);
+//                }
+//
+//                protected void updateUi(String plaintext) {
+//                    rawKeyText.setText(encryptor.getRawKey());
+//                    decryptedText.setText(plaintext);
+//
+//                    Bitmap imageBitmap = null;
+//                    try {
+//                        byte[] bytes = plaintext.getBytes("UTF-8");
+//                        imageBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+//                    } catch (UnsupportedEncodingException e) {
+//                        e.printStackTrace();
+//                    }
+//                    ImageView imgView = (ImageView) findViewById(R.id.imageView);
+//                    imgView.setImageBitmap(imageBitmap);
+//
+//
+//                }
+//            }.execute();
+//        } else if (v.getId() == clearButton.getId()) {
+//            clear();
+//        }
     }
 
     private void clear() {
@@ -397,9 +447,9 @@ public class MainActivity extends Activity implements OnClickListener,
 
         abstract SecretKey deriveKey(String passpword, byte[] salt);
 
-        abstract String encrypt(byte[] plaintext, String password);
+        abstract byte[][] encrypt(byte[] plaintext, String password);
 
-        abstract String decrypt(String ciphertext, String password);
+        abstract byte[][] decrypt(byte[][] ciphertext, String password);
 
         String getRawKey() {
             if (key == null) {
@@ -410,7 +460,7 @@ public class MainActivity extends Activity implements OnClickListener,
         }
     }
 
-    abstract class CryptoTask extends AsyncTask<Void, Void, String> {
+    abstract class CryptoTask extends AsyncTask<Void, Void, byte[][]> {
 
         Exception error;
 
@@ -421,7 +471,7 @@ public class MainActivity extends Activity implements OnClickListener,
         }
 
         @Override
-        protected String doInBackground(Void... params) {
+        protected byte[][] doInBackground(Void... params) {
             try {
                 return doCrypto();
             } catch (Exception e) {
@@ -432,10 +482,10 @@ public class MainActivity extends Activity implements OnClickListener,
             }
         }
 
-        protected abstract String doCrypto();
+        protected abstract byte[][] doCrypto();
 
         @Override
-        protected void onPostExecute(String result) {
+        protected void onPostExecute(byte[][] result) {
             setProgressBarIndeterminateVisibility(false);
             toggleControls(true);
 
@@ -451,6 +501,6 @@ public class MainActivity extends Activity implements OnClickListener,
             updateUi(result);
         }
 
-        protected abstract void updateUi(String result);
+        protected abstract void updateUi(byte[][] result);
     }
 }
