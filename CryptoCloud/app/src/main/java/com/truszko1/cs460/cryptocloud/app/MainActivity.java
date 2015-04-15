@@ -191,22 +191,24 @@ public class MainActivity extends Activity implements OnClickListener,
                 // 2. convert the image into a byte array
                 ByteBuffer buffer = ByteBuffer.allocate(imageBitmap.getByteCount());
                 imageBitmap.copyPixelsToBuffer(buffer);
+
+                int width = imageBitmap.getWidth();
+                int height = imageBitmap.getHeight();
+                imageBitmap.recycle();
+
                 final byte[] byteArray = buffer.array();
 
                 // 3. encrypt the byte array
-                for (int i = 1000; i < 100000; i++) {
-                    byteArray[i] = 0;
-                }
+                transformImage(byteArray);
 
                 // 4. create a new Bitmap of the original image's size
-                Bitmap output = Bitmap.createBitmap(imageBitmap.getWidth(), imageBitmap.getHeight(), Bitmap.Config.ARGB_8888);
-
+                imageBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
                 // 5. use the ecnrypted byte array to create an image representing the array
                 // Add 128 to each byte element in order to change the range of -128..127 to 0..255 to use in an RGB image
                 ByteBuffer outputbuffer = ByteBuffer.wrap(byteArray);
-                output.copyPixelsFromBuffer(outputbuffer);
+                imageBitmap.copyPixelsFromBuffer(outputbuffer);
 
-                imgView.setImageBitmap(output);
+                imgView.setImageBitmap(imageBitmap);
 
 
                 new CryptoTask() {
@@ -240,6 +242,17 @@ public class MainActivity extends Activity implements OnClickListener,
                     .show();
         }
 
+    }
+
+    private void transformImage(byte[] byteArray) {
+        for (int i = 0; i < byteArray.length; i += 4) {
+            Random rand = new Random();
+            int offset = rand.nextInt(127) - 128;
+            byteArray[i] = (byte) offset;
+            byteArray[i + 1] = (byte) offset;
+            byteArray[i + 2] = (byte) offset;
+            byteArray[i + 3] = (byte) offset;
+        }
     }
 
     @Override
