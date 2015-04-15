@@ -196,40 +196,63 @@ public class MainActivity extends Activity implements OnClickListener,
                 int height = imageBitmap.getHeight();
                 imageBitmap.recycle();
 
-                final byte[] byteArray = buffer.array();
+                byte[] imageBytes = buffer.array();
 
                 // 3. encrypt the byte array
-                transformImage(byteArray);
-
-                // 4. create a new Bitmap of the original image's size
+                long starttime = System.currentTimeMillis();
+                encryptImage(imageBytes); // add 125 to each byte element
+                long endtime = System.currentTimeMillis();
+                Log.d(TAG, "encryption time:" + (endtime - starttime) / 1000 + "." + (endtime - starttime) % 1000);
+                // 4. create a new Bitmap from the encrypted byte array
                 imageBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-                // 5. use the ecnrypted byte array to create an image representing the array
-                // Add 128 to each byte element in order to change the range of -128..127 to 0..255 to use in an RGB image
-                ByteBuffer outputbuffer = ByteBuffer.wrap(byteArray);
+                ByteBuffer outputbuffer = ByteBuffer.wrap(imageBytes);
                 imageBitmap.copyPixelsFromBuffer(outputbuffer);
 
+                // now, we read the image from disk and try to recover it!
+                // imageBitmap will contain that image
+
+                // 5. convert the bitmap to byte array
+                buffer = ByteBuffer.allocate(imageBitmap.getByteCount());
+                imageBitmap.copyPixelsToBuffer(buffer);
+                width = imageBitmap.getWidth();
+                height = imageBitmap.getHeight();
+                imageBitmap.recycle();
+                imageBytes = buffer.array();
+
+                // 6. decrypt image
+                starttime = System.currentTimeMillis();
+                decryptImage(imageBytes);
+                endtime = System.currentTimeMillis();
+                Log.d(TAG, "encryption time:" + (endtime - starttime) / 1000 + "." + (endtime - starttime) % 1000);
+
+                // 7. create a new Bitmap from the decrypted byte array
+                imageBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+                outputbuffer = ByteBuffer.wrap(imageBytes);
+                imageBitmap.copyPixelsFromBuffer(outputbuffer);
+
+                // 8. show the image
                 imgView.setImageBitmap(imageBitmap);
 
 
-                new CryptoTask() {
-
-                    @Override
-                    protected String doCrypto() {
-                        return encryptor.encrypt(byteArray, "password");
-                    }
-
-                    @Override
-                    protected void updateUi(String ciphertext) {
-                        rawKeyText.setText(encryptor.getRawKey());
-//                        Log.d("TAG", ciphertext);
-
-
-                        // try to decrypt and show the image!
-
-
-                        encryptedText.setText("meh");
-                    }
-                }.execute();
+//                new CryptoTask() {
+//
+//                    @Override
+//                    protected String doCrypto() {
+//                        return encryptor.encrypt(imageBytes, "password");
+//                    }
+//
+//                    @Override
+//                    protected void updateUi(String ciphertext) {
+//                        rawKeyText.setText(encryptor.getRawKey());
+////                        Log.d("TAG", ciphertext);
+//
+//
+//                        // try to decrypt and show the image!
+//
+//
+//                        encryptedText.setText("meh");
+//                    }
+//                }.execute();
 
 
             } else {
@@ -244,14 +267,25 @@ public class MainActivity extends Activity implements OnClickListener,
 
     }
 
-    private void transformImage(byte[] byteArray) {
+    private void encryptImage(byte[] byteArray) {
         for (int i = 0; i < byteArray.length; i += 4) {
             Random rand = new Random();
-            int offset = rand.nextInt(127) - 128;
-            byteArray[i] = (byte) offset;
-            byteArray[i + 1] = (byte) offset;
-            byteArray[i + 2] = (byte) offset;
-            byteArray[i + 3] = (byte) offset;
+            int offset = 225;//rand.nextInt(127) - 128;
+            byteArray[i] = (byte) (byteArray[i] + offset);
+            byteArray[i + 1] = (byte) (byteArray[i + 1] + offset);
+            byteArray[i + 2] = (byte) (byteArray[i + 2] + offset);
+            byteArray[i + 3] = (byte) (byteArray[i + 3] + offset);
+        }
+    }
+
+    private void decryptImage(byte[] byteArray) {
+        for (int i = 0; i < byteArray.length; i += 4) {
+            Random rand = new Random();
+            int offset = 225;//rand.nextInt(127) - 128;
+            byteArray[i] = (byte) (byteArray[i] - offset);
+            byteArray[i + 1] = (byte) (byteArray[i + 1] - offset);
+            byteArray[i + 2] = (byte) (byteArray[i + 2] - offset);
+            byteArray[i + 3] = (byte) (byteArray[i + 3] - offset);
         }
     }
 
