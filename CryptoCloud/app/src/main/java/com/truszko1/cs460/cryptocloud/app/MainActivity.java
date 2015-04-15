@@ -188,12 +188,15 @@ public class MainActivity extends Activity implements OnClickListener,
                 // 1. get the original image from disk
                 Bitmap imageBitmap = BitmapFactory.decodeFile(imgDecodableString);
 
-                // 2. convert the iamge into a byte array
+                // 2. convert the image into a byte array
                 ByteBuffer buffer = ByteBuffer.allocate(imageBitmap.getByteCount());
                 imageBitmap.copyPixelsToBuffer(buffer);
                 final byte[] byteArray = buffer.array();
 
-                // 3. decrypt the byte array
+                // 3. encrypt the byte array
+                for (int i = 1000; i < 100000; i++) {
+                    byteArray[i] = 0;
+                }
 
                 // 4. create a new Bitmap of the original image's size
                 Bitmap output = Bitmap.createBitmap(imageBitmap.getWidth(), imageBitmap.getHeight(), Bitmap.Config.ARGB_8888);
