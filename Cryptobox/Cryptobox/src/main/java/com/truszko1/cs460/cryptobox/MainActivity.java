@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -17,85 +18,18 @@ import android.widget.*;
 import android.widget.AdapterView.OnItemSelectedListener;
 
 import javax.crypto.SecretKey;
-import java.io.ByteArrayOutputStream;
 import java.io.UnsupportedEncodingException;
+import java.nio.ByteBuffer;
+import java.util.Random;
 
 public class MainActivity extends Activity implements OnClickListener,
         OnItemSelectedListener {
 
+    public static final int COLOR_MIN = 0x00;
+    public static final int COLOR_MAX = 0xFF;
     private static final String TAG = MainActivity.class.getSimpleName();
-
     private static final String MESSAGE = "Secret message!";
-
-    private static final int PADDING_ENC_IDX = 0;
-    private static final int SHA1PRNG_ENC_IDX = 1;
-    private static final int PBKDF2_ENC_IDX = 2;
-    private static final int PKCS12_ENC_IDX = 3;
-    private final Encryptor PADDING_ENCRYPTOR = new Encryptor() {
-
-        @Override
-        public SecretKey deriveKey(String password, byte[] salt) {
-            return Crypto.deriveKeyPad(password);
-        }
-
-        @Override
-        public String encrypt(byte[] plaintext, String password) {
-            key = deriveKey(password, null);
-            Log.d(TAG, "Generated key: " + getRawKey());
-
-            return Crypto.encrypt(plaintext, key, null);
-        }
-
-        @Override
-        public String decrypt(String ciphertext, String password) {
-            SecretKey key = deriveKey(password, null);
-
-            return Crypto.decryptNoSalt(ciphertext, key);
-        }
-    };
-    private final Encryptor SHA1PRNG_ENCRYPTOR = new Encryptor() {
-
-        @Override
-        public SecretKey deriveKey(String password, byte[] salt) {
-            return Crypto.deriveKeySha1prng(password);
-        }
-
-        @Override
-        public String encrypt(byte[] plaintext, String password) {
-            key = deriveKey(password, null);
-            Log.d(TAG, "Generated key: " + getRawKey());
-
-            return Crypto.encrypt(plaintext, key, null);
-        }
-
-        @Override
-        public String decrypt(String ciphertext, String password) {
-            SecretKey key = deriveKey(password, null);
-
-            return Crypto.decryptNoSalt(ciphertext, key);
-        }
-    };
-    private final Encryptor PKCS12_ENCRYPTOR = new Encryptor() {
-
-        @Override
-        public SecretKey deriveKey(String password, byte[] salt) {
-            return Crypto.deriveKeyPkcs12(salt, password);
-        }
-
-        @Override
-        public String encrypt(byte[] plaintext, String password) {
-            byte[] salt = Crypto.generateSalt();
-            key = deriveKey(password, salt);
-            Log.d(TAG, "Generated key: " + getRawKey());
-
-            return Crypto.encryptPkcs12(plaintext, key, salt);
-        }
-
-        @Override
-        public String decrypt(String ciphertext, String password) {
-            return Crypto.decryptPkcs12(ciphertext, password);
-        }
-    };
+    private static final int PBKDF2_ENC_IDX = 0;
     private final Encryptor PBKDF2_ENCRYPTOR = new Encryptor() {
 
         @Override
@@ -129,6 +63,47 @@ public class MainActivity extends Activity implements OnClickListener,
     private Button clearButton;
     private Encryptor encryptor;
 
+    public static Bitmap applyFleaEffect(Bitmap source, byte[] byteArray) {
+        // get image size
+        int width = source.getWidth();
+        int height = source.getHeight();
+        int[] pixels = new int[width * height];
+        // get pixel array from source
+        source.getPixels(pixels, 0, width, 0, 0, width, height);
+        // a random object
+        Random random = new Random();
+        int index = 0;
+        // iteration through pixels
+        Log.d(TAG, "image size:" + width + "x" + height + "=" + width * height);
+        Log.d(TAG, "bytes array size:" + byteArray.length);
+        Log.d(TAG, "source image byte count:" + source.getByteCount());
+
+
+        int blocksize = 5;
+        for (int y = 0; y < height; y += blocksize) {
+            for (int x = 0; x < width; x += blocksize) {
+                // get current index in 2D-matrix
+                index = y * width + x;
+                int delta = byteArray[index] + 128; // change the range of byte (-128..127) to (0..255)
+
+                int color = Color.rgb((255 + delta) % 255, (255 + delta) % 255, (255 + delta) % 255);
+
+                for (int row = 0; row < blocksize; row++) {
+                    for (int column = 0; column < blocksize; column++) {
+                        int idx = index + column + width * row;
+                        if (idx < width * height) {
+                            pixels[idx] = color;
+                        }
+                    }
+                }
+            }
+        }
+        // output bitmap
+        Bitmap bmOut = Bitmap.createBitmap(width, height, source.getConfig());
+        bmOut.setPixels(pixels, 0, width, 0, 0, width, height);
+        return bmOut;
+    }
+
     /**
      * Called when the activity is first created.
      */
@@ -142,7 +117,7 @@ public class MainActivity extends Activity implements OnClickListener,
 
         derivationMethodSpinner = findById(R.id.derivation_method_spinner);
         derivationMethodSpinner.setOnItemSelectedListener(this);
-        encryptor = PADDING_ENCRYPTOR;
+        encryptor = PBKDF2_ENCRYPTOR;
         derivationMethodSpinner.setSelection(0);
 
         passwordText = findById(R.id.password_text);
@@ -209,22 +184,26 @@ public class MainActivity extends Activity implements OnClickListener,
                 String imgDecodableString = cursor.getString(columnIndex);
                 cursor.close();
                 ImageView imgView = (ImageView) findViewById(R.id.imageView);
-                // Set the Image in ImageView after decoding the String
-                Bitmap imageBitmap = BitmapFactory
-                        .decodeFile(imgDecodableString);
 
-                ByteArrayOutputStream stream = new ByteArrayOutputStream();
-                imageBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
-                final byte[] byteArray = stream.toByteArray();
+                // 1. get the original image from disk
+                Bitmap imageBitmap = BitmapFactory.decodeFile(imgDecodableString);
 
+                // 2. convert the iamge into a byte array
+                ByteBuffer buffer = ByteBuffer.allocate(imageBitmap.getByteCount());
+                imageBitmap.copyPixelsToBuffer(buffer);
+                final byte[] byteArray = buffer.array();
 
-                // save the file
-                MediaStore.Images.Media.insertImage(getContentResolver(), BitmapFactory.decodeByteArray(byteArray, 0, byteArray.length), "meh", "nlah");
+                // 3. decrypt the byte array
 
-                //TODO: change the encryption method so that it handles the byte arrays, and not strings
-                //TODO: save the encrypted byte array to file
-                //TODO: read the byte array from file, decrypt it and...pray for the best!
-                imgView.setImageBitmap(imageBitmap);
+                // 4. create a new Bitmap of the original image's size
+                Bitmap output = Bitmap.createBitmap(imageBitmap.getWidth(), imageBitmap.getHeight(), Bitmap.Config.ARGB_8888);
+
+                // 5. use the ecnrypted byte array to create an image representing the array
+                // Add 128 to each byte element in order to change the range of -128..127 to 0..255 to use in an RGB image
+                ByteBuffer outputbuffer = ByteBuffer.wrap(byteArray);
+                output.copyPixelsFromBuffer(outputbuffer);
+
+                imgView.setImageBitmap(output);
 
 
                 new CryptoTask() {
@@ -237,13 +216,13 @@ public class MainActivity extends Activity implements OnClickListener,
                     @Override
                     protected void updateUi(String ciphertext) {
                         rawKeyText.setText(encryptor.getRawKey());
-                        Log.d("TAG", ciphertext);
+//                        Log.d("TAG", ciphertext);
 
 
                         // try to decrypt and show the image!
 
 
-                        encryptedText.setText(ciphertext);
+                        encryptedText.setText("meh");
                     }
                 }.execute();
 
@@ -253,12 +232,12 @@ public class MainActivity extends Activity implements OnClickListener,
                         Toast.LENGTH_LONG).show();
             }
         } catch (Exception e) {
+//            Log.d(TAG, e.getLocalizedMessage());
             Toast.makeText(this, "Something went wrong", Toast.LENGTH_LONG)
                     .show();
         }
 
     }
-
 
     @Override
     public void onClick(View v) {
@@ -351,17 +330,8 @@ public class MainActivity extends Activity implements OnClickListener,
         clear();
 
         switch (pos) {
-            case PADDING_ENC_IDX:
-                encryptor = PADDING_ENCRYPTOR;
-                break;
-            case SHA1PRNG_ENC_IDX:
-                encryptor = SHA1PRNG_ENCRYPTOR;
-                break;
             case PBKDF2_ENC_IDX:
                 encryptor = PBKDF2_ENCRYPTOR;
-                break;
-            case PKCS12_ENC_IDX:
-                encryptor = PKCS12_ENCRYPTOR;
                 break;
             default:
                 throw new IllegalArgumentException("Invalid option selected");

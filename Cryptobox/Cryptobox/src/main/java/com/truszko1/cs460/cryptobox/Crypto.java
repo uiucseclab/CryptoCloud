@@ -4,12 +4,10 @@ import android.util.Base64;
 import android.util.Log;
 
 import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
-import javax.crypto.spec.PBEParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.UnsupportedEncodingException;
 import java.security.GeneralSecurityException;
@@ -18,7 +16,10 @@ import java.security.Provider.Service;
 import java.security.SecureRandom;
 import java.security.Security;
 import java.security.spec.KeySpec;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
 
 public class Crypto {
 
@@ -66,73 +67,6 @@ public class Crypto {
         }
     }
 
-    // Illustration code only: don't use in production!
-    public static SecretKey deriveKeyPad(String password) {
-        try {
-            long start = System.currentTimeMillis();
-            byte[] keyBytes = new byte[KEY_LENGTH / 8];
-            // explicitly fill with zeros
-            Arrays.fill(keyBytes, (byte) 0x0);
-
-            // if password is shorter then key length, it will be zero-padded
-            // to key length
-            byte[] passwordBytes = password.getBytes("UTF-8");
-            int length = passwordBytes.length < keyBytes.length ? passwordBytes.length
-                    : keyBytes.length;
-            System.arraycopy(passwordBytes, 0, keyBytes, 0, length);
-
-            SecretKey result = new SecretKeySpec(keyBytes, "AES");
-            long elapsed = System.currentTimeMillis() - start;
-            Log.d(TAG, String.format("Padding key derivation took %d [ms].",
-                    elapsed));
-
-            return result;
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    // Illustration code only: don't use in production!
-    public static SecretKey deriveKeySha1prng(String password) {
-        try {
-            long start = System.currentTimeMillis();
-            KeyGenerator kgen = KeyGenerator.getInstance("AES");
-            SecureRandom sr = SecureRandom.getInstance("SHA1PRNG");
-            byte[] seed = password.getBytes("UTF-8");
-            sr.setSeed(seed);
-            kgen.init(KEY_LENGTH, sr);
-
-            SecretKey result = kgen.generateKey();
-            long elapsed = System.currentTimeMillis() - start;
-            Log.d(TAG, String.format("SHA1PRNG key derivation took %d [ms].",
-                    elapsed));
-
-            return result;
-        } catch (GeneralSecurityException e) {
-            throw new RuntimeException(e);
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public static SecretKey deriveKeyPkcs12(byte[] salt, String password) {
-        try {
-            long start = System.currentTimeMillis();
-            KeySpec keySpec = new PBEKeySpec(password.toCharArray(), salt,
-                    ITERATION_COUNT, KEY_LENGTH);
-            SecretKeyFactory keyFactory = SecretKeyFactory
-                    .getInstance(PKCS12_DERIVATION_ALGORITHM);
-            SecretKey result = keyFactory.generateSecret(keySpec);
-            long elapsed = System.currentTimeMillis() - start;
-            Log.d(TAG, String.format("PKCS#12 key derivation took %d [ms].",
-                    elapsed));
-
-            return result;
-        } catch (GeneralSecurityException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     public static SecretKey deriveKeyPbkdf2(byte[] salt, String password) {
         try {
             long start = System.currentTimeMillis();
@@ -168,23 +102,6 @@ public class Crypto {
         return b;
     }
 
-    public static String encryptPkcs12(byte[] plaintext, SecretKey key,
-                                       byte[] salt) {
-        try {
-            Cipher cipher = Cipher.getInstance(CIPHER_ALGORITHM);
-
-            PBEParameterSpec pbeSpec = new PBEParameterSpec(salt,
-                    ITERATION_COUNT);
-            cipher.init(Cipher.ENCRYPT_MODE, key, pbeSpec);
-            Log.d(TAG, "Cipher IV: " + toHex(cipher.getIV()));
-            byte[] cipherText = cipher.doFinal(plaintext);
-
-            return String.format("%s%s%s", toBase64(salt), DELIMITER,
-                    toBase64(cipherText));
-        } catch (GeneralSecurityException e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     public static String encrypt(byte[] plaintext, SecretKey key, byte[] salt) {
         try {
@@ -227,24 +144,6 @@ public class Crypto {
         return Base64.decode(base64, Base64.NO_WRAP);
     }
 
-    public static String decryptPkcs12(byte[] cipherBytes, SecretKey key,
-                                       byte[] salt) {
-        try {
-            Cipher cipher = Cipher.getInstance(CIPHER_ALGORITHM);
-            PBEParameterSpec pbeSpec = new PBEParameterSpec(salt,
-                    ITERATION_COUNT);
-            cipher.init(Cipher.DECRYPT_MODE, key, pbeSpec);
-            Log.d(TAG, "Cipher IV: " + toHex(cipher.getIV()));
-            byte[] plainBytes = cipher.doFinal(cipherBytes);
-
-            return new String(plainBytes, "UTF-8");
-        } catch (GeneralSecurityException e) {
-            throw new RuntimeException(e);
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     public static String decrypt(byte[] cipherBytes, SecretKey key, byte[] iv) {
         try {
             Cipher cipher = Cipher.getInstance(CIPHER_ALGORITHM);
@@ -260,19 +159,6 @@ public class Crypto {
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    public static String decryptPkcs12(String ciphertext, String password) {
-        String[] fields = ciphertext.split(DELIMITER);
-        if (fields.length != 2) {
-            throw new IllegalArgumentException("Invalid encypted text format");
-        }
-
-        byte[] salt = fromBase64(fields[0]);
-        byte[] cipherBytes = fromBase64(fields[1]);
-        SecretKey key = deriveKeyPkcs12(salt, password);
-
-        return decryptPkcs12(cipherBytes, key, salt);
     }
 
     public static String decryptPbkdf2(String ciphertext, String password) {
