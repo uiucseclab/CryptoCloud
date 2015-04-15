@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="app_name">Andorid PBE</string>
+    <string name="app_name">CryptoCloud</string>
     <string-array name="derivation_methods">
         <item>PBKDF2 key derivation</item>
     </string-array>
