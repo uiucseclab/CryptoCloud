@@ -73,7 +73,7 @@ public class MainActivity extends Activity implements OnClickListener,
         source.getPixels(pixels, 0, width, 0, 0, width, height);
         // a random object
         Random random = new Random();
-        int index = 0;
+        int index;
         // iteration through pixels
         Log.d(TAG, "image size:" + width + "x" + height + "=" + width * height);
         Log.d(TAG, "bytes array size:" + byteArray.length);
@@ -203,6 +203,7 @@ public class MainActivity extends Activity implements OnClickListener,
 
                 final int width = imageBitmap[0].getWidth();
                 final int height = imageBitmap[0].getHeight();
+                Log.d(TAG, width + "x" + height);
                 imageBitmap[0].recycle();
 
                 final byte[] originalImageBytes = buffer[0].array();
@@ -251,14 +252,15 @@ public class MainActivity extends Activity implements OnClickListener,
                     @Override
                     protected byte[][] doCrypto() {
                         start[0] = System.currentTimeMillis();
-                        return encryptor.encrypt(originalImageBytes, "password");
+                        //TODO: figure out where the extra 16 bytes comes from and how to get rid of it :(
+                        return encryptor.encrypt(originalImageBytes, "password1234");
                     }
 
                     @Override
                     protected void updateUi(final byte[][] encryptedInfo) {
                         end[0] = System.currentTimeMillis();
                         Log.d(TAG, "encrypted bytes:" + encryptedInfo[2].length + "");
-//                        Log.d(TAG, "encryption time:" + (end[0] - start[0]) / 1000 + "." + (end[0] - start[0]) % 1000);
+                        Log.d(TAG, "encryption time:" + (end[0] - start[0]) / 1000 + "." + (end[0] - start[0]) % 1000);
 
                         rawKeyText.setText(encryptor.getRawKey());
                         encryptedText.setText("meh");
@@ -270,7 +272,21 @@ public class MainActivity extends Activity implements OnClickListener,
 //                        Log.d(TAG, "salt + iv:" + saltInBase64 + "     " + ivInBase64);
 //                        Log.d(TAG, "cipherBytes:" + ciphertextInBase64);
 
+                        Log.d(TAG, "iv size:" + encryptedInfo[1].length);
+
+                        for (int i = 0; i < 16; i++) {
+                            Log.d(TAG, "iv " + i + ":" + encryptedInfo[1][i]);
+                        }
+                        for (int i = 0; i < 8; i++) {
+                            Log.d(TAG, "ciphertext first 8 bytes " + i + ":" + encryptedInfo[2][i]);
+                        }
+                        for (int i = encryptedInfo[2].length - 8; i < encryptedInfo[2].length; i++) {
+                            Log.d(TAG, "ciphertext last 8 bytes " + i + ":" + encryptedInfo[2][i]);
+                        }
+
+
                         // display the encrypted image
+                        Log.d(TAG, "WxH" + width + "x" + height);
                         imageBitmap[0] = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
                         buffer[0].rewind();
                         buffer[0] = ByteBuffer.wrap(encryptedInfo[2]);
@@ -287,14 +303,14 @@ public class MainActivity extends Activity implements OnClickListener,
 //                        imageBitmap[0].recycle();
                         final byte[] finalImageBytes = buffer[0].array();
                         Log.d(TAG, "retrieved bytes from encrypted bytes:" + finalImageBytes.length + "");
-                        final byte[][] imageToBeDecrypted = new byte[][]{encryptedInfo[0], encryptedInfo[1], encryptedInfo[2]};
+                        final byte[][] imageToBeDecrypted = new byte[][]{fromBase64(saltInBase64), fromBase64(ivInBase64), finalImageBytes};
 
 
                         new CryptoTask() {
 
                             @Override
                             protected byte[][] doCrypto() {
-                                return encryptor.decrypt(imageToBeDecrypted, "password");
+                                return encryptor.decrypt(imageToBeDecrypted, "password123");
                             }
 
                             protected void updateUi(byte[][] decryptedInfo) {
