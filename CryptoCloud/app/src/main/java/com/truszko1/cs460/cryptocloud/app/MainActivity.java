@@ -246,15 +246,36 @@ public class MainActivity extends Activity implements OnClickListener,
                         // figure out if there are extra bytes introduced by the encryption
                         int diff = encryptedInfo[2].length - originalImageBytes.length;
 
+                        int wi = width, hi = height;
+                        byte[] paddedBytes;
+                        if (diff > 0) {
+                            /* add an extra row to the image
+                             * then add the extra bytes, add a delimiter and fill in random bytes
+                             * when recovering the picture for decryption, simply look at the last row and look for the delimiter.
+                             * If it's there, i can be calculated the number of the extra bytes that are padded in thr last row*/
+                            hi++;
+                            // add delimiter
+                            paddedBytes = new byte[wi * hi * 4];
+                            int i;
+                            for (i = 0; i < encryptedInfo[2].length; i++) {
+                                paddedBytes[i] = encryptedInfo[2][i];
+                            }
+                            for (; i < encryptedInfo[2].length - diff + wi * 4; i++) {
+                                paddedBytes[i] = 0;
+                            }
+
+                            imageBitmap[0] = Bitmap.createBitmap(wi, hi, Bitmap.Config.ARGB_8888);
+                            buffer[0].rewind();
+                            buffer[0] = ByteBuffer.wrap(paddedBytes);
+                            imageBitmap[0].copyPixelsFromBuffer(buffer[0]);
+                        }
+
 //                        Log.d(TAG, "salt + iv:" + saltInBase64 + "     " + ivInBase64);
 //                        Log.d(TAG, "cipherBytes:" + ciphertextInBase64);
 
                         // display the encrypted image
-                        Log.d(TAG, "WxH" + width + "x" + height);
-                        imageBitmap[0] = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-                        buffer[0].rewind();
-                        buffer[0] = ByteBuffer.wrap(encryptedInfo[2]);
-                        imageBitmap[0].copyPixelsFromBuffer(buffer[0]);
+//                        Log.d(TAG, "WxH" + width + "x" + height);
+
 
                         // 8. show the image
                         imgView.setImageBitmap(imageBitmap[0]);
@@ -262,10 +283,39 @@ public class MainActivity extends Activity implements OnClickListener,
                         // decrypt
                         buffer[0] = ByteBuffer.allocate(imageBitmap[0].getByteCount());
                         imageBitmap[0].copyPixelsToBuffer(buffer[0]);
-                        final int w = imageBitmap[0].getWidth();
-                        final int h = imageBitmap[0].getHeight();
 //                        imageBitmap[0].recycle();
-                        final byte[] finalImageBytes = buffer[0].array();
+                        byte[] imageBytes = buffer[0].array();
+
+                        int actualLengthOfImage = imageBytes.length;
+
+                        for (int i = imageBytes.length - 1; i > 0; i -= 8) {
+                            boolean isBlockOfZeros = true;
+                            for (int t = i; t > i - 8; t--) {
+                                if (imageBytes[t] != 0) {
+                                    isBlockOfZeros = false;
+                                    break;
+                                }
+                            }
+                            if (isBlockOfZeros) {
+                                actualLengthOfImage -= 8;
+                            } else {
+                                break;
+                            }
+                        }
+
+                        final int w = imageBitmap[0].getWidth();
+                        final int h;
+                        if (actualLengthOfImage < imageBytes.length) {
+                            h = imageBitmap[0].getHeight() - 1;
+                        } else {
+                            h = imageBitmap[0].getHeight();
+                        }
+
+                        byte[] finalImageBytes = new byte[actualLengthOfImage];
+                        for (int i = 0; i < actualLengthOfImage; i++) {
+                            finalImageBytes[i] = imageBytes[i];
+                        }
+
                         Log.d(TAG, "retrieved bytes from encrypted bytes:" + finalImageBytes.length + "");
                         final byte[][] imageToBeDecrypted = new byte[][]{fromBase64(saltInBase64), fromBase64(ivInBase64), finalImageBytes};
 
