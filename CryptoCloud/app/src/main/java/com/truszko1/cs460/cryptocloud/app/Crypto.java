@@ -25,7 +25,7 @@ public class Crypto {
     public static final String PKCS12_DERIVATION_ALGORITHM = "PBEWITHSHA256AND256BITAES-CBC-BC";
     public static final String PBKDF2_DERIVATION_ALGORITHM = "PBKDF2WithHmacSHA1";
     private static final String TAG = Crypto.class.getSimpleName();
-    private static final String CIPHER_ALGORITHM = "AES/CBC/PKCS5Padding";
+    private static final String CIPHER_ALGORITHM = "AES/CBC/NoPadding";
     private static final int PKCS5_SALT_LENGTH = 8;
     private static String DELIMITER = "]";
     private static int KEY_LENGTH = 256;

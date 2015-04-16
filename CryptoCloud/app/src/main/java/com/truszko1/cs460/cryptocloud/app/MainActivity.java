@@ -272,19 +272,6 @@ public class MainActivity extends Activity implements OnClickListener,
 //                        Log.d(TAG, "salt + iv:" + saltInBase64 + "     " + ivInBase64);
 //                        Log.d(TAG, "cipherBytes:" + ciphertextInBase64);
 
-                        Log.d(TAG, "iv size:" + encryptedInfo[1].length);
-
-                        for (int i = 0; i < 16; i++) {
-                            Log.d(TAG, "iv " + i + ":" + encryptedInfo[1][i]);
-                        }
-                        for (int i = 0; i < 8; i++) {
-                            Log.d(TAG, "ciphertext first 8 bytes " + i + ":" + encryptedInfo[2][i]);
-                        }
-                        for (int i = encryptedInfo[2].length - 8; i < encryptedInfo[2].length; i++) {
-                            Log.d(TAG, "ciphertext last 8 bytes " + i + ":" + encryptedInfo[2][i]);
-                        }
-
-
                         // display the encrypted image
                         Log.d(TAG, "WxH" + width + "x" + height);
                         imageBitmap[0] = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
@@ -310,7 +297,7 @@ public class MainActivity extends Activity implements OnClickListener,
 
                             @Override
                             protected byte[][] doCrypto() {
-                                return encryptor.decrypt(imageToBeDecrypted, "password123");
+                                return encryptor.decrypt(imageToBeDecrypted, "password1234");
                             }
 
                             protected void updateUi(byte[][] decryptedInfo) {
