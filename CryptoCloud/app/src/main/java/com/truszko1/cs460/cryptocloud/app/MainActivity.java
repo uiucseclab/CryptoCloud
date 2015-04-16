@@ -15,8 +15,11 @@ import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.Window;
-import android.widget.*;
+import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemSelectedListener;
+import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.Toast;
 
 import javax.crypto.SecretKey;
 import java.nio.ByteBuffer;
@@ -42,7 +45,6 @@ public class MainActivity extends Activity implements OnClickListener,
         public byte[][] encrypt(byte[] plaintext, String password) {
             byte[] salt = Crypto.generateSalt();
             key = deriveKey(password, salt);
-            Log.d(TAG, "Generated key: " + getRawKey());
 
 
             return Crypto.encrypt(plaintext, key, salt);
@@ -53,15 +55,8 @@ public class MainActivity extends Activity implements OnClickListener,
             return Crypto.decryptPbkdf2(encryptedInfo, password);
         }
     };
-    private Spinner derivationMethodSpinner;
-    private EditText passwordText;
-    private TextView encryptedText;
-    private TextView decryptedText;
-    private TextView rawKeyText;
-    private Button listAlgorithmsButton;
     private Button encryptButton;
     private Button decryptButton;
-    private Button clearButton;
     private Encryptor encryptor;
 
     public static Bitmap applyFleaEffect(Bitmap source, byte[] byteArray) {
@@ -124,20 +119,8 @@ public class MainActivity extends Activity implements OnClickListener,
         setContentView(R.layout.main);
         setProgressBarIndeterminateVisibility(false);
 
-        derivationMethodSpinner = findById(R.id.derivation_method_spinner);
-        derivationMethodSpinner.setOnItemSelectedListener(this);
         encryptor = PBKDF2_ENCRYPTOR;
-        derivationMethodSpinner.setSelection(0);
 
-        passwordText = findById(R.id.password_text);
-
-        encryptedText = findById(R.id.encrypted_text);
-        decryptedText = findById(R.id.decrypted_text);
-        rawKeyText = findById(R.id.raw_key_text);
-
-        listAlgorithmsButton = findById(R.id.list_algs_button);
-        listAlgorithmsButton.setOnClickListener(this);
-        listAlgorithmsButton.setVisibility(View.GONE);
         encryptButton = findById(R.id.encrypt_button);
 //        encryptButton.setOnClickListener(this);
 
@@ -154,8 +137,6 @@ public class MainActivity extends Activity implements OnClickListener,
 
         decryptButton = findById(R.id.decrypt_button);
         decryptButton.setOnClickListener(this);
-        clearButton = findById(R.id.clear_button);
-        clearButton.setOnClickListener(this);
     }
 
     @SuppressWarnings("unchecked")
@@ -164,12 +145,8 @@ public class MainActivity extends Activity implements OnClickListener,
     }
 
     private void toggleControls(boolean enable) {
-        derivationMethodSpinner.setEnabled(enable);
-        derivationMethodSpinner.setEnabled(enable);
-        passwordText.setEnabled(enable);
         encryptButton.setEnabled(enable);
         decryptButton.setEnabled(enable);
-        clearButton.setEnabled(enable);
     }
 
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -262,12 +239,12 @@ public class MainActivity extends Activity implements OnClickListener,
                         Log.d(TAG, "encrypted bytes:" + encryptedInfo[2].length + "");
                         Log.d(TAG, "encryption time:" + (end[0] - start[0]) / 1000 + "." + (end[0] - start[0]) % 1000);
 
-                        rawKeyText.setText(encryptor.getRawKey());
-                        encryptedText.setText("meh");
-
                         String saltInBase64 = toBase64(encryptedInfo[0]);
                         String ivInBase64 = toBase64(encryptedInfo[1]);
                         String ciphertextInBase64 = toBase64(encryptedInfo[2]);
+
+                        // figure out if there are extra bytes introduced by the encryption
+                        int diff = encryptedInfo[2].length - originalImageBytes.length;
 
 //                        Log.d(TAG, "salt + iv:" + saltInBase64 + "     " + ivInBase64);
 //                        Log.d(TAG, "cipherBytes:" + ciphertextInBase64);
@@ -439,17 +416,9 @@ public class MainActivity extends Activity implements OnClickListener,
 //        }
     }
 
-    private void clear() {
-        encryptedText.setText("");
-        decryptedText.setText("");
-        rawKeyText.setText("");
-    }
-
     @Override
     public void onItemSelected(AdapterView<?> parent, View view, int pos,
                                long id) {
-        clear();
-
         switch (pos) {
             case PBKDF2_ENC_IDX:
                 encryptor = PBKDF2_ENCRYPTOR;
@@ -472,13 +441,6 @@ public class MainActivity extends Activity implements OnClickListener,
 
         abstract byte[][] decrypt(byte[][] ciphertext, String password);
 
-        String getRawKey() {
-            if (key == null) {
-                return null;
-            }
-
-            return Crypto.toHex(key.getEncoded());
-        }
     }
 
     abstract class CryptoTask extends AsyncTask<Void, Void, byte[][]> {
