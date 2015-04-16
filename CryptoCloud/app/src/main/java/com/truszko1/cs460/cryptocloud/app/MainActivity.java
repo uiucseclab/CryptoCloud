@@ -206,6 +206,7 @@ public class MainActivity extends Activity implements OnClickListener,
                 imageBitmap[0].recycle();
 
                 final byte[] originalImageBytes = buffer[0].array();
+                Log.d(TAG, "original image bytes:" + originalImageBytes.length + "");
 //
 //                // 3. encrypt the byte array
 //                long starttime = System.currentTimeMillis();
@@ -256,7 +257,8 @@ public class MainActivity extends Activity implements OnClickListener,
                     @Override
                     protected void updateUi(final byte[][] encryptedInfo) {
                         end[0] = System.currentTimeMillis();
-                        Log.d(TAG, "encryption time:" + (end[0] - start[0]) / 1000 + "." + (end[0] - start[0]) % 1000);
+                        Log.d(TAG, "encrypted bytes:" + encryptedInfo[2].length + "");
+//                        Log.d(TAG, "encryption time:" + (end[0] - start[0]) / 1000 + "." + (end[0] - start[0]) % 1000);
 
                         rawKeyText.setText(encryptor.getRawKey());
                         encryptedText.setText("meh");
@@ -265,40 +267,56 @@ public class MainActivity extends Activity implements OnClickListener,
                         String ivInBase64 = toBase64(encryptedInfo[1]);
                         String ciphertextInBase64 = toBase64(encryptedInfo[2]);
 
-                        Log.d(TAG, "salt + iv:" + saltInBase64 + "     " + ivInBase64);
-                        Log.d(TAG, "cipherBytes:" + ciphertextInBase64);
+//                        Log.d(TAG, "salt + iv:" + saltInBase64 + "     " + ivInBase64);
+//                        Log.d(TAG, "cipherBytes:" + ciphertextInBase64);
 
                         // display the encrypted image
                         imageBitmap[0] = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+                        buffer[0].rewind();
                         buffer[0] = ByteBuffer.wrap(encryptedInfo[2]);
                         imageBitmap[0].copyPixelsFromBuffer(buffer[0]);
 
                         // 8. show the image
                         imgView.setImageBitmap(imageBitmap[0]);
 
-
                         // decrypt
+                        buffer[0] = ByteBuffer.allocate(imageBitmap[0].getByteCount());
+                        imageBitmap[0].copyPixelsToBuffer(buffer[0]);
+                        final int w = imageBitmap[0].getWidth();
+                        final int h = imageBitmap[0].getHeight();
+//                        imageBitmap[0].recycle();
+                        final byte[] finalImageBytes = buffer[0].array();
+                        Log.d(TAG, "retrieved bytes from encrypted bytes:" + finalImageBytes.length + "");
+                        final byte[][] imageToBeDecrypted = new byte[][]{encryptedInfo[0], encryptedInfo[1], encryptedInfo[2]};
 
-//                        new CryptoTask() {
-//
-//                            @Override
-//                            protected byte[][] doCrypto() {
-//                                return encryptor.decrypt(encryptedInfo, "password");
-//                            }
-//
-//                            protected void updateUi(byte[][] encryptedInfo) {
-//                                byte[] imageBytes = encryptedInfo[0];
+
+                        new CryptoTask() {
+
+                            @Override
+                            protected byte[][] doCrypto() {
+                                return encryptor.decrypt(imageToBeDecrypted, "password");
+                            }
+
+                            protected void updateUi(byte[][] decryptedInfo) {
+                                byte[] imageBytes = decryptedInfo[0];
 //                                rawKeyText.setText(encryptor.getRawKey());
-////                                decryptedText.setText(plaintext);
-//
-//                                Bitmap imageBitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
-//
-//                                ImageView imgView = (ImageView) findViewById(R.id.imageView);
-//                                imgView.setImageBitmap(imageBitmap);
-//
-//
-//                            }
-//                        }.execute();
+//                                decryptedText.setText(plaintext);
+
+                                Log.d(TAG, "decrypted bytes" + imageBytes.length + "");
+
+
+                                Bitmap decryptedImage = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+
+                                ByteBuffer b = ByteBuffer.wrap(decryptedInfo[0]);
+                                decryptedImage.copyPixelsFromBuffer(b);
+
+
+                                ImageView imgView = (ImageView) findViewById(R.id.imageView);
+                                imgView.setImageBitmap(decryptedImage);
+
+
+                            }
+                        }.execute();
 
 
                     }
