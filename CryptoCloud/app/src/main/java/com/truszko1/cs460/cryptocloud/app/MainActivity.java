@@ -50,6 +50,7 @@ public class MainActivity extends Activity {
     };
     ArrayList<String> imagesPath;
     byte[] paddedEncryptedBytes;
+    String file_path;
     private ImageView originalImage;
     private Button encryptButton;
     private Button decryptButton;
@@ -182,9 +183,10 @@ public class MainActivity extends Activity {
 
                             @Override
                             public void onClick(DialogInterface arg0, int arg1) {
-                                String file_path = Environment.getExternalStorageDirectory().getAbsolutePath();
-                                File dir = new File(file_path);
+                                file_path = Environment.getExternalStorageDirectory().getAbsolutePath();
+                                File dir = new File(file_path + "/Pictures/");
                                 File file = new File(dir, "meh.png");
+                                file_path = file.getAbsolutePath();
                                 BufferedOutputStream bos;
                                 try {
                                     bos = new BufferedOutputStream(new FileOutputStream(file));
@@ -219,7 +221,8 @@ public class MainActivity extends Activity {
 
         byte[] encryptedImageInfo = null;
         // read file
-        File file = new File("/storage/emulated/0/meh.png");
+        File file = new File(file_path);
+        Log.d(TAG, "path:" + file_path);
         FileInputStream fin = null;
         try {
             fin = new FileInputStream(file);
