@@ -108,6 +108,9 @@ public class MainActivity extends Activity {
         final int count = imagesPath.size();
         int number = random.nextInt(count);
         String path = imagesPath.get(number);
+        if (currentBitmap != null) {
+            currentBitmap.recycle();
+        }
         currentBitmap = BitmapFactory.decodeFile(path);
         originalImage.setImageBitmap(currentBitmap);
 
