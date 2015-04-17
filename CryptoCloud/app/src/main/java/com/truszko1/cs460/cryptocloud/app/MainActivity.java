@@ -25,7 +25,11 @@ import javax.crypto.SecretKey;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Random;
+import java.util.zip.DataFormatException;
+import java.util.zip.Deflater;
+import java.util.zip.Inflater;
 
 public class MainActivity extends Activity {
 
@@ -76,6 +80,56 @@ public class MainActivity extends Activity {
             hexChars[j * 2 + 1] = hexArray[v & 0x0F];
         }
         return new String(hexChars);
+    }
+
+    public static byte[] compress(byte[] data) throws IOException {
+        Deflater deflater = new Deflater();
+        deflater.setInput(data);
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream(data.length);
+        deflater.finish();
+
+        byte[] buffer = new byte[1024];
+
+        while (!deflater.finished()) {
+            int count = deflater.deflate(buffer); // returns the generated code... index
+            outputStream.write(buffer, 0, count);
+        }
+        outputStream.close();
+        byte[] output = outputStream.toByteArray();
+        Log.d(TAG, "Original: " + data.length / 1024 + " Kb");
+        Log.d(TAG, "Compressed: " + output.length / 1024 + " Kb");
+        return output;
+    }
+
+    public static byte[] decompress(byte[] data) throws IOException, DataFormatException {
+        Inflater inflater = new Inflater();
+        inflater.setInput(data);
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream(data.length);
+        byte[] buffer = new byte[1024];
+        while (!inflater.finished()) {
+            int count = inflater.inflate(buffer);
+            outputStream.write(buffer, 0, count);
+        }
+        outputStream.close();
+        byte[] output = outputStream.toByteArray();
+
+        Log.d(TAG, "Original: " + data.length);
+        Log.d(TAG, "Compressed: " + output.length);
+        return output;
+    }
+
+    public static byte[] intToByteArray(int a) {
+        byte[] ret = new byte[4];
+        ret[3] = (byte) (a & 0xFF);
+        ret[2] = (byte) ((a >> 8) & 0xFF);
+        ret[1] = (byte) ((a >> 16) & 0xFF);
+        ret[0] = (byte) ((a >> 24) & 0xFF);
+        return ret;
+    }
+
+    public static int byteArrayToInt(byte[] b) {
+        return (b[3] & 0xFF) + ((b[2] & 0xFF) << 8) + ((b[1] & 0xFF) << 16) + ((b[0] & 0xFF) << 24);
     }
 
     /**
@@ -149,7 +203,7 @@ public class MainActivity extends Activity {
         int number = random.nextInt(count);
         String path = imagesPath.get(number);
         currentBitmap = BitmapFactory.decodeFile(path);
-        currentBitmap = getResizedBitmap(currentBitmap, 500);
+//        currentBitmap = getResizedBitmap(currentBitmap, 500);
 
         ByteBuffer buffer = ByteBuffer.allocate(currentBitmap.getByteCount());
         currentBitmap.copyPixelsToBuffer(buffer);
@@ -174,44 +228,88 @@ public class MainActivity extends Activity {
             protected void updateUi(final byte[][] encryptedInfo) {
                 finish[0] = System.currentTimeMillis();
                 Log.d(TAG, "encryption time:" + (finish[0] - start[0]));
+                Log.d(TAG, "salt size:" + encryptedInfo[0].length);
+                Log.d(TAG, "iv size:" + encryptedInfo[1].length);
                 String saltInBase64 = toBase64(encryptedInfo[0]);
                 String ivInBase64 = toBase64(encryptedInfo[1]);
                 ((TextView) findViewById(R.id.salt)).setText(saltInBase64);
                 ((TextView) findViewById(R.id.iv)).setText(ivInBase64);
 
-                int paddingSize = encryptedInfo[2].length - originalImageBytes.length;
+//                int paddingSize = encryptedInfo[2].length - originalImageBytes.length;
+//
+//                int newHeight = height;
+//
+//                if (paddingSize > 0) {
+//                    newHeight++;
+//                    paddedEncryptedBytes = new byte[width * newHeight * 4];
+//                    int i;
+//                    // copy all encrypted bytes
+//                    for (i = 0; i < encryptedInfo[2].length; i++) {
+//                        paddedEncryptedBytes[i] = encryptedInfo[2][i];
+//                    }
+//                    // fill the last row with zeroes
+//                    int newArraySize = encryptedInfo[2].length - paddingSize + width * 4;
+//                    for (; i < newArraySize; i++) {
+//                        paddedEncryptedBytes[i] = 0;
+//                    }
+//                } else {
+//                    paddedEncryptedBytes = new byte[width * newHeight * 4];
+//                    int i;
+//                    // copy all encrypted bytes
+//                    for (i = 0; i < encryptedInfo[2].length; i++) {
+//                        paddedEncryptedBytes[i] = encryptedInfo[2][i];
+//                    }
+//                }
 
-                int newHeight = height;
+                // + 8 for storing width and heigt of the original image
+//                int widthNumerOfBytes = 4;
+//                int heightNumerOfBytes = 4;
+//                int saltNumerOfBytes = 8;
+//                int ivNumerOfBytes = 16;
+//                paddedEncryptedBytes = new byte[encryptedInfo[2].length + widthNumerOfBytes + heightNumerOfBytes + saltNumerOfBytes + ivNumerOfBytes];
 
-                if (paddingSize > 0) {
-                    newHeight++;
-                    paddedEncryptedBytes = new byte[width * newHeight * 4];
-                    int i;
-                    // copy all encrypted bytes
-                    for (i = 0; i < encryptedInfo[2].length; i++) {
-                        paddedEncryptedBytes[i] = encryptedInfo[2][i];
-                    }
-                    // fill the last row with zeroes
-                    int newArraySize = encryptedInfo[2].length - paddingSize + width * 4;
-                    for (; i < newArraySize; i++) {
-                        paddedEncryptedBytes[i] = 0;
-                    }
-                } else {
-                    paddedEncryptedBytes = new byte[width * newHeight * 4];
-                    int i;
-                    // copy all encrypted bytes
-                    for (i = 0; i < encryptedInfo[2].length; i++) {
-                        paddedEncryptedBytes[i] = encryptedInfo[2][i];
-                    }
+//                int i = 0;
+//                for (; i < encryptedInfo[2].length; i++) {
+//                    paddedEncryptedBytes[i] = encryptedInfo[2][i];
+//                }
+//
+//                // next 4 bytes are width
+//                byte[] widthBytes = intToByteArray(width);
+//                paddedEncryptedBytes[i++] = widthBytes[0];
+//                paddedEncryptedBytes[i++] = widthBytes[1];
+//                paddedEncryptedBytes[i++] = widthBytes[2];
+//                paddedEncryptedBytes[i++] = widthBytes[3];
+//
+//                byte[] heightBytes = intToByteArray(height);
+//                paddedEncryptedBytes[i++] = heightBytes[0];
+//                paddedEncryptedBytes[i++] = heightBytes[1];
+//                paddedEncryptedBytes[i++] = heightBytes[2];
+//                paddedEncryptedBytes[i++] = heightBytes[3];
+//
+
+
+                ByteArrayOutputStream bytesStream = new ByteArrayOutputStream();
+                try {
+                    bytesStream.write(encryptedInfo[2]); // image bytes
+                    Log.d(TAG, "number of encrypted image bytes" + encryptedInfo[2].length);
+                    bytesStream.write(encryptedInfo[0]); // salt
+                    bytesStream.write(encryptedInfo[1]); // iv
+                    bytesStream.write(intToByteArray(width));
+                    bytesStream.write(intToByteArray(height));
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
+
+
+                paddedEncryptedBytes = bytesStream.toByteArray();
 
                 Log.d(TAG, "paddedEncryptedBytes length:" + paddedEncryptedBytes.length);
 //                Log.d(TAG, "original bytes hex:" + bytesToHex(paddedEncryptedBytes));
 
-                final Bitmap encryptedImage = Bitmap.createBitmap(width, newHeight, Bitmap.Config.ARGB_8888);
-                Log.d(TAG, "WxH:" + width + "x" + newHeight);
-                ByteBuffer buffer = ByteBuffer.wrap(paddedEncryptedBytes);
-                encryptedImage.copyPixelsFromBuffer(buffer);
+//                final Bitmap encryptedImage = Bitmap.createBitmap(width, newHeight, Bitmap.Config.ARGB_8888);
+//                Log.d(TAG, "WxH:" + width + "x" + newHeight);
+//                ByteBuffer buffer = ByteBuffer.wrap(paddedEncryptedBytes);
+//                encryptedImage.copyPixelsFromBuffer(buffer);
 
 //                ((ImageView) findViewById(R.id.encryptedImage)).setImageBitmap(encryptedImage);
 
@@ -230,7 +328,7 @@ public class MainActivity extends Activity {
                                 File dir = new File(file_path);
                                 if (!dir.exists())
                                     dir.mkdirs();
-                                File file = new File(dir, "meh.png");
+                                File file = new File(dir, "meh");
 //                                Log.d(TAG, dir.getAbsolutePath());
 //                                FileOutputStream fOut;
 //                                try {
@@ -256,8 +354,8 @@ public class MainActivity extends Activity {
                                     e.printStackTrace();
                                 }
 
-                                ImageView imgView = (ImageView) findViewById(R.id.encryptedImage);
-                                imgView.setImageBitmap(encryptedImage);
+//                                ImageView imgView = (ImageView) findViewById(R.id.encryptedImage);
+//                                imgView.setImageBitmap(encryptedImage);
 
 
                             }
@@ -284,14 +382,14 @@ public class MainActivity extends Activity {
 //
 
 
-        byte[] imageBytes = new byte[0];
+        byte[] encryptedImageInfo = null;
         // read file
-        File file = new File("/storage/emulated/0/meh.png");
+        File file = new File("/storage/emulated/0/meh");
         FileInputStream fin = null;
         try {
             fin = new FileInputStream(file);
-            imageBytes = new byte[(int) file.length()];
-            fin.read(imageBytes);
+            encryptedImageInfo = new byte[(int) file.length()];
+            fin.read(encryptedImageInfo);
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -305,7 +403,29 @@ public class MainActivity extends Activity {
             }
         }
 
+        int totalBytes = encryptedImageInfo.length;
+        int heightNumberOfBytes = 4;
+        int widthNumberOfBytes = 4;
+        int ivNumberOfBytes = 16;
+        int saltNumberOfBytes = 8;
+        int imageNumberOfBytes = totalBytes - heightNumberOfBytes - widthNumberOfBytes - saltNumberOfBytes - ivNumberOfBytes;
+        final byte[] heightBytes = Arrays.copyOfRange(encryptedImageInfo, totalBytes - heightNumberOfBytes, totalBytes);
+        totalBytes -= heightNumberOfBytes;
+        final byte[] widthBytes = Arrays.copyOfRange(encryptedImageInfo, totalBytes - widthNumberOfBytes, totalBytes);
+        totalBytes -= widthNumberOfBytes;
+        byte[] ivBytes = Arrays.copyOfRange(encryptedImageInfo, totalBytes - ivNumberOfBytes, totalBytes);
+        totalBytes -= ivNumberOfBytes;
+        byte[] saltBytes = Arrays.copyOfRange(encryptedImageInfo, totalBytes - saltNumberOfBytes, totalBytes);
+        totalBytes -= saltNumberOfBytes;
+        byte[] imageBytes = Arrays.copyOfRange(encryptedImageInfo, totalBytes - imageNumberOfBytes, totalBytes);
+        encryptedImageInfo = null;
 
+        Log.d(TAG, "height:" + byteArrayToInt(heightBytes));
+        Log.d(TAG, "width:" + byteArrayToInt(widthBytes));
+        Log.d(TAG, "iv:" + toBase64(ivBytes));
+        Log.d(TAG, "salt:" + toBase64(saltBytes));
+
+        Log.d(TAG, "number of decrypted image bytes" + imageBytes.length);
 //        String file_path = Environment.getExternalStorageDirectory().getAbsolutePath();
 //        Bitmap bitmap = BitmapFactory.decodeFile(file_path + "/" + "meh.png");
 //
@@ -316,50 +436,50 @@ public class MainActivity extends Activity {
 //        bitmap.copyPixelsToBuffer(buffer);
 //        byte[] imageBytes = buffer.array();
 //        Log.d(TAG, "original bytes hex:" + bytesToHex(imageBytes));
-        Log.d(TAG, "retrieved imageBytes length:" + imageBytes.length);
+//        Log.d(TAG, "retrieved imageBytes length:" + encryptedImageInfo.length);
 
         boolean isSamePicture = true;
 
-        for (int i = 0; i < 20; i++) {
-            if (imageBytes[i] != paddedEncryptedBytes[i]) {
-                isSamePicture = false;
-            }
-            Log.d(TAG, imageBytes[i] + " " + paddedEncryptedBytes[i]);
-        }
+//        for (int i = 0; i < 20; i++) {
+//            if (imageBytes[i] != paddedEncryptedBytes[i]) {
+//                isSamePicture = false;
+//            }
+//            Log.d(TAG, imageBytes[i] + " " + paddedEncryptedBytes[i]);
+//        }
 
-        Log.d(TAG, "isSamePicture:" + isSamePicture);
+//        Log.d(TAG, "isSamePicture:" + isSamePicture);
+//
+//        int actualLengthOfImage = imageBytes.length;
+//
+//        for (int i = imageBytes.length - 1; i > 0; i -= 8) {
+//            boolean isBlockOfZeros = true;
+//            for (int t = i; t > i - 8; t--) {
+//                if (imageBytes[t] != 0) {
+//                    isBlockOfZeros = false;
+//                    break;
+//                }
+//            }
+//            if (isBlockOfZeros) {
+//                actualLengthOfImage -= 8;
+//            } else {
+//                break;
+//            }
+//        }
 
-        int actualLengthOfImage = imageBytes.length;
+//        final int width = 1920;//bitmap.getWidth();
+//        final int height = 22;
+//        if (actualLengthOfImage < imageBytes.length) {
+//            height = 1280;//bitmap.getHeight() - 1;
+//        } else {
+//            height = 1281;//bitmap.getHeight();
+//        }
 
-        for (int i = imageBytes.length - 1; i > 0; i -= 8) {
-            boolean isBlockOfZeros = true;
-            for (int t = i; t > i - 8; t--) {
-                if (imageBytes[t] != 0) {
-                    isBlockOfZeros = false;
-                    break;
-                }
-            }
-            if (isBlockOfZeros) {
-                actualLengthOfImage -= 8;
-            } else {
-                break;
-            }
-        }
+//        byte[] finalImageBytes = new byte[encryptedImageInfo.length];
+//        for (int i = 0; i < encryptedImageInfo.length; i++) {
+//            finalImageBytes[i] = encryptedImageInfo[i];
+//        }
 
-        final int width = 1920;//bitmap.getWidth();
-        final int height;
-        if (actualLengthOfImage < imageBytes.length) {
-            height = 1280;//bitmap.getHeight() - 1;
-        } else {
-            height = 1281;//bitmap.getHeight();
-        }
-
-        byte[] finalImageBytes = new byte[actualLengthOfImage];
-        for (int i = 0; i < actualLengthOfImage; i++) {
-            finalImageBytes[i] = imageBytes[i];
-        }
-
-        final byte[][] imageToBeDecrypted = new byte[][]{fromBase64(((TextView) findViewById(R.id.salt)).getText().toString()), fromBase64(((TextView) findViewById(R.id.iv)).getText().toString()), finalImageBytes};
+        final byte[][] imageToBeDecrypted = new byte[][]{saltBytes, ivBytes, imageBytes};
 
 
         new CryptoTask() {
@@ -375,7 +495,7 @@ public class MainActivity extends Activity {
                 Log.d(TAG, "decrypted bytes" + imageBytes.length + "");
 
 
-                Bitmap decryptedImage = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+                Bitmap decryptedImage = Bitmap.createBitmap(byteArrayToInt(widthBytes), byteArrayToInt(heightBytes), Bitmap.Config.ARGB_8888);
 
                 ByteBuffer b = ByteBuffer.wrap(decryptedInfo[0]);
                 decryptedImage.copyPixelsFromBuffer(b);
