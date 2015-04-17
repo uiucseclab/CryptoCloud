@@ -11,7 +11,6 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
-import android.util.Base64;
 import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -22,22 +21,16 @@ import android.widget.Toast;
 
 import javax.crypto.SecretKey;
 import java.io.*;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
-import java.util.zip.DataFormatException;
-import java.util.zip.Deflater;
-import java.util.zip.Inflater;
 
 public class MainActivity extends Activity {
 
-    final protected static char[] hexArray = "0123456789ABCDEF".toCharArray();
     private static final String TAG = MainActivity.class.getSimpleName();
     private final Encryptor PBKDF2_ENCRYPTOR = new Encryptor() {
 
-        @Override
-        public SecretKey deriveKey(String password, byte[] salt) {
+        private SecretKey deriveKey(String password, byte[] salt) {
             return Crypto.deriveKeyPbkdf2(salt, password);
         }
 
@@ -62,74 +55,6 @@ public class MainActivity extends Activity {
     private Button decryptButton;
     private Encryptor encryptor;
     private Bitmap currentBitmap = null;
-
-    public static byte[] fromBase64(String base64) {
-        return Base64.decode(base64, Base64.NO_WRAP);
-    }
-
-    public static String toBase64(byte[] bytes) {
-        return Base64.encodeToString(bytes, Base64.NO_WRAP);
-    }
-
-    public static String bytesToHex(byte[] bytes) {
-        char[] hexChars = new char[bytes.length * 2];
-        for (int j = 0; j < bytes.length; j++) {
-            int v = bytes[j] & 0xFF;
-            hexChars[j * 2] = hexArray[v >>> 4];
-            hexChars[j * 2 + 1] = hexArray[v & 0x0F];
-        }
-        return new String(hexChars);
-    }
-
-    public static byte[] compress(byte[] data) throws IOException {
-        Deflater deflater = new Deflater();
-        deflater.setInput(data);
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream(data.length);
-        deflater.finish();
-
-        byte[] buffer = new byte[1024];
-
-        while (!deflater.finished()) {
-            int count = deflater.deflate(buffer); // returns the generated code... index
-            outputStream.write(buffer, 0, count);
-        }
-        outputStream.close();
-        byte[] output = outputStream.toByteArray();
-        Log.d(TAG, "Original: " + data.length / 1024 + " Kb");
-        Log.d(TAG, "Compressed: " + output.length / 1024 + " Kb");
-        return output;
-    }
-
-    public static byte[] decompress(byte[] data) throws IOException, DataFormatException {
-        Inflater inflater = new Inflater();
-        inflater.setInput(data);
-
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream(data.length);
-        byte[] buffer = new byte[1024];
-        while (!inflater.finished()) {
-            int count = inflater.inflate(buffer);
-            outputStream.write(buffer, 0, count);
-        }
-        outputStream.close();
-        byte[] output = outputStream.toByteArray();
-
-        Log.d(TAG, "Original: " + data.length);
-        Log.d(TAG, "Compressed: " + output.length);
-        return output;
-    }
-
-    public static byte[] intToByteArray(int a) {
-        byte[] ret = new byte[4];
-        ret[3] = (byte) (a & 0xFF);
-        ret[2] = (byte) ((a >> 8) & 0xFF);
-        ret[1] = (byte) ((a >> 16) & 0xFF);
-        ret[0] = (byte) ((a >> 24) & 0xFF);
-        return ret;
-    }
-
-    public static int byteArrayToInt(byte[] b) {
-        return (b[3] & 0xFF) + ((b[2] & 0xFF) << 8) + ((b[1] & 0xFF) << 16) + ((b[0] & 0xFF) << 24);
-    }
 
     /**
      * Called when the activity is first created.
@@ -177,25 +102,7 @@ public class MainActivity extends Activity {
         });
     }
 
-    public Bitmap getResizedBitmap(Bitmap image, int maxSize) {
-        int width = image.getWidth();
-        int height = image.getHeight();
-
-        float bitmapRatio = (float) width / (float) height;
-        if (bitmapRatio > 0) {
-            width = maxSize;
-            height = (int) (width / bitmapRatio);
-        } else {
-            height = maxSize;
-            width = (int) (height * bitmapRatio);
-        }
-        return Bitmap.createScaledBitmap(image, width, height, true);
-    }
-
     private void encryptImage() {
-//        ImageView originalImage = (ImageView) findViewById(R.id.originalImage);
-//        Bitmap bitmap = ((BitmapDrawable) originalImage.getDrawable()).getBitmap();
-
 
         final Random random = new Random();
         final int count = imagesPath.size();
@@ -203,16 +110,34 @@ public class MainActivity extends Activity {
         String path = imagesPath.get(number);
         currentBitmap = BitmapFactory.decodeFile(path);
         originalImage.setImageBitmap(currentBitmap);
-//        currentBitmap = getResizedBitmap(currentBitmap, 500);
 
-        ByteBuffer buffer = ByteBuffer.allocate(currentBitmap.getByteCount());
-        currentBitmap.copyPixelsToBuffer(buffer);
+        File file = new File(path);
+        FileInputStream fileInputStream = null;
+        try {
+            fileInputStream = new FileInputStream(file);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
 
-        final int width = currentBitmap.getWidth();
-        final int height = currentBitmap.getHeight();
-//        currentBitmap.recycle();
+        ByteArrayOutputStream byteBuffer = new ByteArrayOutputStream();
 
-        final byte[] originalImageBytes = buffer.array();
+        // this is storage overwritten on each iteration with bytes
+        int bufferSize = 1024;
+        byte[] buffer = new byte[bufferSize];
+
+        // we need to know how may bytes were read to write them to the byteBuffer
+        int len;
+        try {
+            assert fileInputStream != null;
+            while ((len = fileInputStream.read(buffer)) != -1) {
+                byteBuffer.write(buffer, 0, len);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        // and then we can return your byte array.
+        final byte[] originalImageBytes = byteBuffer.toByteArray();
 
         final long[] start = new long[1];
         final long[] finish = new long[1];
@@ -230,8 +155,6 @@ public class MainActivity extends Activity {
                 Log.d(TAG, "encryption time:" + (finish[0] - start[0]));
                 Log.d(TAG, "salt size:" + encryptedInfo[0].length);
                 Log.d(TAG, "iv size:" + encryptedInfo[1].length);
-                String saltInBase64 = toBase64(encryptedInfo[0]);
-                String ivInBase64 = toBase64(encryptedInfo[1]);
 
 
                 ByteArrayOutputStream bytesStream = new ByteArrayOutputStream();
@@ -240,8 +163,6 @@ public class MainActivity extends Activity {
                     Log.d(TAG, "number of encrypted image bytes" + encryptedInfo[2].length);
                     bytesStream.write(encryptedInfo[0]); // salt
                     bytesStream.write(encryptedInfo[1]); // iv
-                    bytesStream.write(intToByteArray(width));
-                    bytesStream.write(intToByteArray(height));
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -260,7 +181,7 @@ public class MainActivity extends Activity {
                             public void onClick(DialogInterface arg0, int arg1) {
                                 String file_path = Environment.getExternalStorageDirectory().getAbsolutePath();
                                 File dir = new File(file_path);
-                                File file = new File(dir, "meh");
+                                File file = new File(dir, "meh.png");
                                 BufferedOutputStream bos;
                                 try {
                                     bos = new BufferedOutputStream(new FileOutputStream(file));
@@ -295,7 +216,7 @@ public class MainActivity extends Activity {
 
         byte[] encryptedImageInfo = null;
         // read file
-        File file = new File("/storage/emulated/0/meh");
+        File file = new File("/storage/emulated/0/meh.png");
         FileInputStream fin = null;
         try {
             fin = new FileInputStream(file);
@@ -316,25 +237,14 @@ public class MainActivity extends Activity {
 
         assert encryptedImageInfo != null;
         int totalBytes = encryptedImageInfo.length;
-        int heightNumberOfBytes = 4;
-        int widthNumberOfBytes = 4;
         int ivNumberOfBytes = 16;
         int saltNumberOfBytes = 8;
-        int imageNumberOfBytes = totalBytes - heightNumberOfBytes - widthNumberOfBytes - saltNumberOfBytes - ivNumberOfBytes;
-        final byte[] heightBytes = Arrays.copyOfRange(encryptedImageInfo, totalBytes - heightNumberOfBytes, totalBytes);
-        totalBytes -= heightNumberOfBytes;
-        final byte[] widthBytes = Arrays.copyOfRange(encryptedImageInfo, totalBytes - widthNumberOfBytes, totalBytes);
-        totalBytes -= widthNumberOfBytes;
+        int imageNumberOfBytes = totalBytes - saltNumberOfBytes - ivNumberOfBytes;
         byte[] ivBytes = Arrays.copyOfRange(encryptedImageInfo, totalBytes - ivNumberOfBytes, totalBytes);
         totalBytes -= ivNumberOfBytes;
         byte[] saltBytes = Arrays.copyOfRange(encryptedImageInfo, totalBytes - saltNumberOfBytes, totalBytes);
         totalBytes -= saltNumberOfBytes;
         byte[] imageBytes = Arrays.copyOfRange(encryptedImageInfo, totalBytes - imageNumberOfBytes, totalBytes);
-
-        Log.d(TAG, "height:" + byteArrayToInt(heightBytes));
-        Log.d(TAG, "width:" + byteArrayToInt(widthBytes));
-        Log.d(TAG, "iv:" + toBase64(ivBytes));
-        Log.d(TAG, "salt:" + toBase64(saltBytes));
 
         Log.d(TAG, "number of decrypted image bytes" + imageBytes.length);
 
@@ -353,15 +263,27 @@ public class MainActivity extends Activity {
 
                 Log.d(TAG, "decrypted bytes" + imageBytes.length + "");
 
-
-                Bitmap decryptedImage = Bitmap.createBitmap(byteArrayToInt(widthBytes), byteArrayToInt(heightBytes), Bitmap.Config.ARGB_8888);
-
-                ByteBuffer b = ByteBuffer.wrap(decryptedInfo[0]);
-                decryptedImage.copyPixelsFromBuffer(b);
-
+                Bitmap bmp = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
 
                 ImageView imgView = (ImageView) findViewById(R.id.decryptedImage);
-                imgView.setImageBitmap(decryptedImage);
+                imgView.setImageBitmap(bmp);
+
+                FileOutputStream out = null;
+                try {
+                    out = new FileOutputStream("/storage/emulated/0/output.jpg");
+                    bmp.compress(Bitmap.CompressFormat.JPEG, 100, out); // bmp is your Bitmap instance
+                    // PNG is a lossless format, the compression factor (100) is ignored
+                } catch (Exception e) {
+                    e.printStackTrace();
+                } finally {
+                    try {
+                        if (out != null) {
+                            out.close();
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
 
 
             }
@@ -397,8 +319,6 @@ public class MainActivity extends Activity {
 
     abstract class Encryptor {
         SecretKey key;
-
-        abstract SecretKey deriveKey(String passpword, byte[] salt);
 
         abstract byte[][] encrypt(byte[] plaintext, String password);
 
