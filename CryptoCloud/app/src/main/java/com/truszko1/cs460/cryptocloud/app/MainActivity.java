@@ -1,6 +1,8 @@
 package com.truszko1.cs460.cryptocloud.app;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -8,6 +10,7 @@ import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Base64;
 import android.util.Log;
@@ -20,12 +23,14 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import javax.crypto.SecretKey;
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Random;
 
 public class MainActivity extends Activity {
 
+    final protected static char[] hexArray = "0123456789ABCDEF".toCharArray();
     private static final String TAG = MainActivity.class.getSimpleName();
     private final Encryptor PBKDF2_ENCRYPTOR = new Encryptor() {
 
@@ -49,6 +54,7 @@ public class MainActivity extends Activity {
         }
     };
     ArrayList<String> imagesPath;
+    byte[] paddedEncryptedBytes;
     private ImageView originalImage;
     private Button encryptButton;
     private Button decryptButton;
@@ -61,6 +67,16 @@ public class MainActivity extends Activity {
 
     public static String toBase64(byte[] bytes) {
         return Base64.encodeToString(bytes, Base64.NO_WRAP);
+    }
+
+    public static String bytesToHex(byte[] bytes) {
+        char[] hexChars = new char[bytes.length * 2];
+        for (int j = 0; j < bytes.length; j++) {
+            int v = bytes[j] & 0xFF;
+            hexChars[j * 2] = hexArray[v >>> 4];
+            hexChars[j * 2 + 1] = hexArray[v & 0x0F];
+        }
+        return new String(hexChars);
     }
 
     /**
@@ -89,8 +105,6 @@ public class MainActivity extends Activity {
                 final int count = imagesPath.size();
                 int number = random.nextInt(count);
                 String path = imagesPath.get(number);
-                if (currentBitmap != null)
-                    currentBitmap.recycle();
                 currentBitmap = BitmapFactory.decodeFile(path);
                 originalImage.setImageBitmap(currentBitmap);
             }
@@ -123,15 +137,20 @@ public class MainActivity extends Activity {
 
         final byte[] originalImageBytes = buffer.array();
 
+        final long[] start = new long[1];
+        final long[] finish = new long[1];
         new CryptoTask() {
 
             @Override
             protected byte[][] doCrypto() {
+                start[0] = System.currentTimeMillis();
                 return encryptor.encrypt(originalImageBytes, "password1234");
             }
 
             @Override
             protected void updateUi(final byte[][] encryptedInfo) {
+                finish[0] = System.currentTimeMillis();
+                Log.d(TAG, "encryption time:" + (finish[0] - start[0]));
                 String saltInBase64 = toBase64(encryptedInfo[0]);
                 String ivInBase64 = toBase64(encryptedInfo[1]);
                 ((TextView) findViewById(R.id.salt)).setText(saltInBase64);
@@ -140,8 +159,6 @@ public class MainActivity extends Activity {
                 int paddingSize = encryptedInfo[2].length - originalImageBytes.length;
 
                 int newHeight = height;
-
-                byte[] paddedEncryptedBytes;
 
                 if (paddingSize > 0) {
                     newHeight++;
@@ -165,23 +182,129 @@ public class MainActivity extends Activity {
                     }
                 }
 
-                Bitmap encryptedImage = Bitmap.createBitmap(width, newHeight, Bitmap.Config.ARGB_8888);
+                Log.d(TAG, "paddedEncryptedBytes length:" + paddedEncryptedBytes.length);
+//                Log.d(TAG, "original bytes hex:" + bytesToHex(paddedEncryptedBytes));
+
+                final Bitmap encryptedImage = Bitmap.createBitmap(width, newHeight, Bitmap.Config.ARGB_8888);
+                Log.d(TAG, "WxH:" + width + "x" + newHeight);
                 ByteBuffer buffer = ByteBuffer.wrap(paddedEncryptedBytes);
                 encryptedImage.copyPixelsFromBuffer(buffer);
 
-                ((ImageView) findViewById(R.id.encryptedImage)).setImageBitmap(encryptedImage);
+//                ((ImageView) findViewById(R.id.encryptedImage)).setImageBitmap(encryptedImage);
+
+                AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(MainActivity.this);
+                alertDialogBuilder.setMessage("save the image?");
+                alertDialogBuilder.setPositiveButton("yes",
+                        new DialogInterface.OnClickListener() {
+
+                            @Override
+                            public void onClick(DialogInterface arg0, int arg1) {
+
+//                                MediaStore.Images.Media.insertImage(getContentResolver(), encryptedImage, "title.jpg", "asdsad");
+
+
+                                String file_path = Environment.getExternalStorageDirectory().getAbsolutePath();
+                                File dir = new File(file_path);
+                                if (!dir.exists())
+                                    dir.mkdirs();
+                                File file = new File(dir, "meh.png");
+//                                Log.d(TAG, dir.getAbsolutePath());
+//                                FileOutputStream fOut;
+//                                try {
+//                                    fOut = new FileOutputStream(file);
+//                                    encryptedImage.compress(Bitmap.CompressFormat.PNG, 100, fOut);
+//                                    fOut.flush();
+//                                    fOut.close();
+//                                } catch (FileNotFoundException e) {
+//                                    e.printStackTrace();
+//                                } catch (IOException e) {
+//                                    e.printStackTrace();
+//                                }
+
+                                BufferedOutputStream bos = null;
+                                try {
+                                    bos = new BufferedOutputStream(new FileOutputStream(file));
+                                    bos.write(paddedEncryptedBytes);
+                                    bos.flush();
+                                    bos.close();
+                                } catch (FileNotFoundException e) {
+                                    e.printStackTrace();
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+
+                                ImageView imgView = (ImageView) findViewById(R.id.encryptedImage);
+                                imgView.setImageBitmap(encryptedImage);
+
+
+                            }
+                        });
+                alertDialogBuilder.setNegativeButton("no",
+                        new DialogInterface.OnClickListener() {
+
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+
+                            }
+                        });
+
+                AlertDialog alertDialog = alertDialogBuilder.create();
+                alertDialog.show();
+
             }
         }.execute();
     }
 
-
     private void decryptImage() {
-        ImageView encryptedImage = (ImageView) findViewById(R.id.encryptedImage);
-        Bitmap bitmap = ((BitmapDrawable) encryptedImage.getDrawable()).getBitmap();
+//        ImageView encryptedImage = (ImageView) findViewById(R.id.encryptedImage);
+//        Bitmap bitmap = ((BitmapDrawable) encryptedImage.getDrawable()).getBitmap();
+//
 
-        ByteBuffer buffer = ByteBuffer.allocate(bitmap.getByteCount());
-        bitmap.copyPixelsToBuffer(buffer);
-        byte[] imageBytes = buffer.array();
+
+        byte[] imageBytes = new byte[0];
+        // read file
+        File file = new File("/storage/emulated/0/meh.png");
+        FileInputStream fin = null;
+        try {
+            fin = new FileInputStream(file);
+            imageBytes = new byte[(int) file.length()];
+            fin.read(imageBytes);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                if (fin != null) {
+                    fin.close();
+                }
+            } catch (IOException ioe) {
+            }
+        }
+
+
+//        String file_path = Environment.getExternalStorageDirectory().getAbsolutePath();
+//        Bitmap bitmap = BitmapFactory.decodeFile(file_path + "/" + "meh.png");
+//
+//        ImageView imgView = (ImageView) findViewById(R.id.decryptedImage);
+//        imgView.setImageBitmap(bitmap);
+//
+//        ByteBuffer buffer = ByteBuffer.allocate(bitmap.getByteCount());
+//        bitmap.copyPixelsToBuffer(buffer);
+//        byte[] imageBytes = buffer.array();
+//        Log.d(TAG, "original bytes hex:" + bytesToHex(imageBytes));
+        Log.d(TAG, "retrieved imageBytes length:" + imageBytes.length);
+
+        boolean isSamePicture = true;
+
+        for (int i = 0; i < 20; i++) {
+            if (imageBytes[i] != paddedEncryptedBytes[i]) {
+                isSamePicture = false;
+            }
+            Log.d(TAG, imageBytes[i] + " " + paddedEncryptedBytes[i]);
+        }
+
+        Log.d(TAG, "isSamePicture:" + isSamePicture);
 
         int actualLengthOfImage = imageBytes.length;
 
@@ -200,12 +323,12 @@ public class MainActivity extends Activity {
             }
         }
 
-        final int width = bitmap.getWidth();
+        final int width = 1920;//bitmap.getWidth();
         final int height;
         if (actualLengthOfImage < imageBytes.length) {
-            height = bitmap.getHeight() - 1;
+            height = 1280;//bitmap.getHeight() - 1;
         } else {
-            height = bitmap.getHeight();
+            height = 1281;//bitmap.getHeight();
         }
 
         byte[] finalImageBytes = new byte[actualLengthOfImage];
@@ -243,7 +366,7 @@ public class MainActivity extends Activity {
         }.execute();
 
     }
-    
+
     private void loadImagePaths() {
         String[] projection = new String[]{
                 MediaStore.Images.Media.DATA,
