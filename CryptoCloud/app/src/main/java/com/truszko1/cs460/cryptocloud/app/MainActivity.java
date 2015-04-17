@@ -6,7 +6,6 @@ import android.content.DialogInterface;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -125,15 +124,39 @@ public class MainActivity extends Activity {
         });
     }
 
-    private void encryptImage() {
-        ImageView originalImage = (ImageView) findViewById(R.id.originalImage);
-        Bitmap bitmap = ((BitmapDrawable) originalImage.getDrawable()).getBitmap();
-        ByteBuffer buffer = ByteBuffer.allocate(bitmap.getByteCount());
-        bitmap.copyPixelsToBuffer(buffer);
+    public Bitmap getResizedBitmap(Bitmap image, int maxSize) {
+        int width = image.getWidth();
+        int height = image.getHeight();
 
-        final int width = bitmap.getWidth();
-        final int height = bitmap.getHeight();
-        bitmap.recycle();
+        float bitmapRatio = (float) width / (float) height;
+        if (bitmapRatio > 0) {
+            width = maxSize;
+            height = (int) (width / bitmapRatio);
+        } else {
+            height = maxSize;
+            width = (int) (height * bitmapRatio);
+        }
+        return Bitmap.createScaledBitmap(image, width, height, true);
+    }
+
+    private void encryptImage() {
+//        ImageView originalImage = (ImageView) findViewById(R.id.originalImage);
+//        Bitmap bitmap = ((BitmapDrawable) originalImage.getDrawable()).getBitmap();
+
+
+        final Random random = new Random();
+        final int count = imagesPath.size();
+        int number = random.nextInt(count);
+        String path = imagesPath.get(number);
+        currentBitmap = BitmapFactory.decodeFile(path);
+        currentBitmap = getResizedBitmap(currentBitmap, 500);
+
+        ByteBuffer buffer = ByteBuffer.allocate(currentBitmap.getByteCount());
+        currentBitmap.copyPixelsToBuffer(buffer);
+
+        final int width = currentBitmap.getWidth();
+        final int height = currentBitmap.getHeight();
+        currentBitmap.recycle();
 
         final byte[] originalImageBytes = buffer.array();
 
