@@ -6,6 +6,8 @@ import android.content.DialogInterface;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Paint;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -21,6 +23,7 @@ import android.widget.Toast;
 
 import javax.crypto.SecretKey;
 import java.io.*;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
@@ -184,24 +187,88 @@ public class MainActivity extends Activity {
                             @Override
                             public void onClick(DialogInterface arg0, int arg1) {
                                 file_path = Environment.getExternalStorageDirectory().getAbsolutePath();
-                                File dir = new File(file_path + "/Pictures/");
+                                File dir = new File(file_path);
                                 File file = new File(dir, "meh.png");
-                                file_path = file.getAbsolutePath();
-                                BufferedOutputStream bos;
-                                try {
-                                    bos = new BufferedOutputStream(new FileOutputStream(file));
-                                    bos.write(paddedEncryptedBytes);
-                                    bos.flush();
-                                    bos.close();
-                                } catch (FileNotFoundException e) {
-                                    e.printStackTrace();
-                                } catch (IOException e) {
-                                    e.printStackTrace();
+//                                file_path = file.getAbsolutePath();
+//                                BufferedOutputStream bos;
+//                                try {
+//                                    bos = new BufferedOutputStream(new FileOutputStream(file));
+//                                    bos.write(paddedEncryptedBytes);
+//                                    bos.flush();
+//                                    bos.close();
+//                                } catch (FileNotFoundException e) {
+//                                    e.printStackTrace();
+//                                } catch (IOException e) {
+//                                    e.printStackTrace();
+//                                }
+
+                                int height = (int) Math.ceil(Math.sqrt(paddedEncryptedBytes.length));
+                                int width = height;
+                                Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+                                // Create a Canvas Object;
+                                Canvas c = new Canvas(bitmap);
+// Value to index the byte[];
+                                int bI = 0;
+// Paint Object for drawing the pixel;
+                                Paint p = new Paint();
+// Iterate through the pixel rows;
+                                int i = 0, j = 0;
+                                for (i = 0; i < height; i++) {
+                                    // Iterate through the pixels in the row;
+                                    for (j = 0; j < width; j++) {
+                                        // Pull out 4 bytes and generate colour int;
+                                        // This entire statement depends on bytesPerPixel;
+                                        int colorInt;
+                                        if (bI >= paddedEncryptedBytes.length) {
+                                            colorInt = 0;
+                                        } else {
+                                            colorInt = paddedEncryptedBytes[bI++];
+                                        }
+                                        // Set the colour on the Paint;
+                                        p.setColor(colorInt);
+                                        // Draw the pixel;
+                                        c.drawPoint(j, i, p);
+                                    }
                                 }
 
+                                ByteBuffer b = ByteBuffer.allocate(4);
+//b.order(ByteOrder.BIG_ENDIAN); // optional, the initial order of a byte buffer is always BIG_ENDIAN.
+                                b.putInt(paddedEncryptedBytes.length);
+
+                                byte[] result = b.array();
+                                p.setColor(result[3]);
+                                c.drawPoint(--j, i - 1, p);
+                                p.setColor(result[2]);
+                                c.drawPoint(--j, i - 1, p);
+                                p.setColor(result[1]);
+                                c.drawPoint(--j, i - 1, p);
+                                p.setColor(result[0]);
+                                c.drawPoint(--j, i - 1, p);
+
+
+                                try {
+                                    // Create a File Object;
+                                    file = new File(dir, "meh.png");
+                                    // Ensure that the file exists and can be written to;
+                                    if (!file.exists()) {
+                                        file.createNewFile();
+                                    }
+                                    // Create a FileOutputStream Object;
+                                    FileOutputStream fos = new FileOutputStream(file);
+                                    // Write the Bitmap to the File, 100 is max quality but
+                                    //        it is ignored for PNG since that is lossless;
+                                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
+                                    // Clear the output stream;
+                                    fos.flush();
+                                    // Close the output stream;
+                                    fos.close();
+                                } catch (Exception e) {
+                                }
+
+                                originalImage.setImageBitmap(bitmap);
+
                             }
-                        });
-                alertDialogBuilder.setNegativeButton("no",
+                        }).setNegativeButton("no",
                         new DialogInterface.OnClickListener() {
 
                             @Override
@@ -217,12 +284,12 @@ public class MainActivity extends Activity {
         }.execute();
     }
 
+
     private void decryptImage() {
 
         byte[] encryptedImageInfo = null;
         // read file
         File file = new File(file_path);
-        Log.d(TAG, "path:" + file_path);
         FileInputStream fin = null;
         try {
             fin = new FileInputStream(file);
@@ -240,6 +307,18 @@ public class MainActivity extends Activity {
             } catch (IOException ignored) {
             }
         }
+
+        Bitmap bmp = BitmapFactory.decodeByteArray(encryptedImageInfo, 0, encryptedImageInfo.length);
+
+        int color = bmp.getPixel(4, 4);
+
+        for (int i = bmp.getWidth() - 4; i < bmp.getWidth(); i++) {
+            Log.d(TAG, "" + bmp.getPixel(i, bmp.getHeight() - 1));
+        }
+
+        byte[] array = Arrays.copyOfRange(encryptedImageInfo, encryptedImageInfo.length - 4, encryptedImageInfo.length);
+        ByteBuffer wrapped = ByteBuffer.wrap(array); // big-endian by default
+        int num = wrapped.getInt(); // 1
 
         assert encryptedImageInfo != null;
         int totalBytes = encryptedImageInfo.length;
