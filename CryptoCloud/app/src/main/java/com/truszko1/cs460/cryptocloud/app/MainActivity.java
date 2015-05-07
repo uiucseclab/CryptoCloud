@@ -4,10 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.database.Cursor;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
-import android.graphics.Paint;
+import android.graphics.*;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -25,7 +22,6 @@ import javax.crypto.SecretKey;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Random;
 
 public class MainActivity extends Activity {
@@ -167,7 +163,7 @@ public class MainActivity extends Activity {
                 ByteArrayOutputStream bytesStream = new ByteArrayOutputStream();
                 try {
                     bytesStream.write(encryptedInfo[2]); // image bytes
-                    Log.d(TAG, "number of encrypted image bytes" + encryptedInfo[2].length);
+                    Log.d(TAG, "number of encrypted image bytes:" + encryptedInfo[2].length);
                     bytesStream.write(encryptedInfo[0]); // salt
                     bytesStream.write(encryptedInfo[1]); // iv
                 } catch (IOException e) {
@@ -186,9 +182,9 @@ public class MainActivity extends Activity {
 
                             @Override
                             public void onClick(DialogInterface arg0, int arg1) {
-                                file_path = Environment.getExternalStorageDirectory().getAbsolutePath();
-                                File dir = new File(file_path);
-                                File file = new File(dir, "meh.png");
+//                                file_path = Environment.getExternalStorageDirectory().getAbsolutePath();
+//                                File dir = new File(file_path);
+//                                File file = new File(dir, "meh.png");
 //                                file_path = file.getAbsolutePath();
 //                                BufferedOutputStream bos;
 //                                try {
@@ -216,13 +212,14 @@ public class MainActivity extends Activity {
                                 for (i = 0; i < height; i++) {
                                     // Iterate through the pixels in the row;
                                     for (j = 0; j < width; j++) {
-                                        // Pull out 4 bytes and generate colour int;
-                                        // This entire statement depends on bytesPerPixel;
+                                        // store
                                         int colorInt;
                                         if (bI >= paddedEncryptedBytes.length) {
-                                            colorInt = 0;
+                                            int randomInt = random.nextInt(255);
+                                            colorInt = Color.rgb(randomInt, randomInt, randomInt);
                                         } else {
-                                            colorInt = paddedEncryptedBytes[bI++];
+                                            int color = paddedEncryptedBytes[bI++] + 128;
+                                            colorInt = Color.rgb(color, color, color);
                                         }
                                         // Set the colour on the Paint;
                                         p.setColor(colorInt);
@@ -235,17 +232,22 @@ public class MainActivity extends Activity {
 //b.order(ByteOrder.BIG_ENDIAN); // optional, the initial order of a byte buffer is always BIG_ENDIAN.
                                 b.putInt(paddedEncryptedBytes.length);
 
+                                Log.d(TAG, paddedEncryptedBytes.length + "");
+
                                 byte[] result = b.array();
-                                p.setColor(result[3]);
+                                p.setColor(Color.rgb(result[3] + 128, result[3] + 128, result[3] + 128));
                                 c.drawPoint(--j, i - 1, p);
-                                p.setColor(result[2]);
+                                p.setColor(Color.rgb(result[2] + 128, result[2] + 128, result[2] + 128));
                                 c.drawPoint(--j, i - 1, p);
-                                p.setColor(result[1]);
+                                p.setColor(Color.rgb(result[1] + 128, result[1] + 128, result[1] + 128));
                                 c.drawPoint(--j, i - 1, p);
-                                p.setColor(result[0]);
+                                p.setColor(Color.rgb(result[0] + 128, result[0] + 128, result[0] + 128));
                                 c.drawPoint(--j, i - 1, p);
 
 
+                                file_path = Environment.getExternalStorageDirectory().getAbsolutePath();
+                                File dir = new File(file_path);
+                                File file;
                                 try {
                                     // Create a File Object;
                                     file = new File(dir, "meh.png");
@@ -289,7 +291,9 @@ public class MainActivity extends Activity {
 
         byte[] encryptedImageInfo = null;
         // read file
-        File file = new File(file_path);
+        file_path = Environment.getExternalStorageDirectory().getAbsolutePath();
+        File dir = new File(file_path);
+        File file = new File(dir, "meh.png");
         FileInputStream fin = null;
         try {
             fin = new FileInputStream(file);
@@ -307,29 +311,34 @@ public class MainActivity extends Activity {
             } catch (IOException ignored) {
             }
         }
-
         Bitmap bmp = BitmapFactory.decodeByteArray(encryptedImageInfo, 0, encryptedImageInfo.length);
 
-        int color = bmp.getPixel(4, 4);
+        int numberofpixels = bmp.getWidth() * bmp.getHeight();
+        int[] pixels = new int[numberofpixels];
+        bmp.getPixels(pixels, 0, bmp.getWidth(), 0, 0, bmp.getWidth(), bmp.getHeight());
 
-        for (int i = bmp.getWidth() - 4; i < bmp.getWidth(); i++) {
-            Log.d(TAG, "" + bmp.getPixel(i, bmp.getHeight() - 1));
-        }
 
-        byte[] array = Arrays.copyOfRange(encryptedImageInfo, encryptedImageInfo.length - 4, encryptedImageInfo.length);
-        ByteBuffer wrapped = ByteBuffer.wrap(array); // big-endian by default
-        int num = wrapped.getInt(); // 1
+        byte[] imageBytesLength = new byte[4];
+        imageBytesLength[3] = (byte) (Color.red(pixels[numberofpixels - 1]) - 128);
+        imageBytesLength[2] = (byte) (Color.red(pixels[numberofpixels - 2]) - 128);
+        imageBytesLength[1] = (byte) (Color.red(pixels[numberofpixels - 3]) - 128);
+        imageBytesLength[0] = (byte) (Color.red(pixels[numberofpixels - 4]) - 128);
+
+        ByteBuffer wrapped = ByteBuffer.wrap(imageBytesLength); // big-endian by default
 
         assert encryptedImageInfo != null;
-        int totalBytes = encryptedImageInfo.length;
+        int totalUsefulBytes = wrapped.getInt();
         int ivNumberOfBytes = 16;
         int saltNumberOfBytes = 8;
-        int imageNumberOfBytes = totalBytes - saltNumberOfBytes - ivNumberOfBytes;
-        byte[] ivBytes = Arrays.copyOfRange(encryptedImageInfo, totalBytes - ivNumberOfBytes, totalBytes);
-        totalBytes -= ivNumberOfBytes;
-        byte[] saltBytes = Arrays.copyOfRange(encryptedImageInfo, totalBytes - saltNumberOfBytes, totalBytes);
-        totalBytes -= saltNumberOfBytes;
-        byte[] imageBytes = Arrays.copyOfRange(encryptedImageInfo, totalBytes - imageNumberOfBytes, totalBytes);
+        int imageNumberOfBytes = totalUsefulBytes - saltNumberOfBytes - ivNumberOfBytes;
+
+
+//        byte[] ivBytes = Arrays.copyOfRange(encryptedImageInfo, totalUsefulBytes - ivNumberOfBytes, totalUsefulBytes);
+        byte[] ivBytes = retrieveBytesFromBitmap(pixels, totalUsefulBytes - ivNumberOfBytes, totalUsefulBytes);
+        totalUsefulBytes -= ivNumberOfBytes;
+        byte[] saltBytes = retrieveBytesFromBitmap(pixels, totalUsefulBytes - saltNumberOfBytes, totalUsefulBytes);
+        totalUsefulBytes -= saltNumberOfBytes;
+        byte[] imageBytes = retrieveBytesFromBitmap(pixels, totalUsefulBytes - imageNumberOfBytes, totalUsefulBytes);
 
         Log.d(TAG, "number of decrypted image bytes" + imageBytes.length);
 
@@ -374,6 +383,15 @@ public class MainActivity extends Activity {
             }
         }.execute();
 
+    }
+
+    private byte[] retrieveBytesFromBitmap(int[] pixels, int beginning, int end) {
+        byte[] retval = new byte[end - beginning];
+        int idx = 0;
+        for (int i = beginning; i < end; i++) {
+            retval[idx++] = (byte) (Color.red(pixels[i]) - 128);
+        }
+        return retval;
     }
 
     private void loadImagePaths() {
