@@ -20,14 +20,14 @@
                     android:layout_width="fill_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="3dp"
-                    android:text="Encrypt"/>
+                    android:text="Pick Image To Encrypt"/>
 
             <Button
                     android:id="@+id/decrypt_button"
                     android:layout_width="fill_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="3dp"
-                    android:text="Decrypt"/>
+                    android:text="Pick Image To Decrypt"/>
             <ImageView
                     android:layout_width="wrap_content"
                     android:layout_height="200dp"

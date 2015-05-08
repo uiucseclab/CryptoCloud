@@ -5,7 +5,10 @@ import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.database.Cursor;
-import android.graphics.*;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -52,7 +55,8 @@ public class MainActivity extends Activity {
     ArrayList<String> imagesPath;
     byte[] imageSaltAndIvBytes;
     String file_path;
-    private int PICK_IMAGE_REQUEST = 1;
+    private int PICK_IMAGE_TO_ENCRYPT_REQUEST = 1;
+    private int PICK_IMAGE_TO_DECRYPT_REQUEST = 2;
     private ImageView originalImage;
     private Button encryptButton;
     private Button decryptButton;
@@ -102,14 +106,19 @@ public class MainActivity extends Activity {
                 intent.setType("image/*");
                 intent.setAction(Intent.ACTION_GET_CONTENT);
                 // Always show the chooser (if there are multiple options available)
-                startActivityForResult(Intent.createChooser(intent, "Select Picture"), PICK_IMAGE_REQUEST);
+                startActivityForResult(Intent.createChooser(intent, "Select Picture"), PICK_IMAGE_TO_ENCRYPT_REQUEST);
             }
         });
 
         decryptButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
-                decryptImage();
+                Intent intent = new Intent();
+                // Show only images, no videos or anything else
+                intent.setType("image/*");
+                intent.setAction(Intent.ACTION_GET_CONTENT);
+                // Always show the chooser (if there are multiple options available)
+                startActivityForResult(Intent.createChooser(intent, "Select Picture"), PICK_IMAGE_TO_DECRYPT_REQUEST);
             }
         });
     }
@@ -118,13 +127,13 @@ public class MainActivity extends Activity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
-        if (requestCode == PICK_IMAGE_REQUEST && resultCode == RESULT_OK && data != null && data.getData() != null) {
+        if (requestCode == PICK_IMAGE_TO_ENCRYPT_REQUEST && resultCode == RESULT_OK && data != null && data.getData() != null) {
 
             final Uri imageUri = data.getData();
 
             AlertDialog.Builder dialog = new AlertDialog.Builder(this);
             LayoutInflater factory = this.getLayoutInflater();
-            final View view = factory.inflate(R.layout.image_dialog, null);
+            final View view = factory.inflate(R.layout.pick_image_dialog, null);
             dialog.setView(view);
             Bitmap myBitmap = BitmapFactory.decodeFile(file_path);
             ImageView myImage = (ImageView) view.findViewById(R.id.originalImage);
@@ -136,7 +145,25 @@ public class MainActivity extends Activity {
             }).setNegativeButton("No", new DialogInterface.OnClickListener() {
                 public void onClick(DialogInterface dialog, int which) {
                 }
-            }).setTitle("Encrypt this image and store it in Dropbox?").show();
+            }).setTitle("Encrypt and store this image?").show();
+        } else if (requestCode == PICK_IMAGE_TO_DECRYPT_REQUEST && resultCode == RESULT_OK && data != null && data.getData() != null) {
+            final Uri imageUri = data.getData();
+
+            AlertDialog.Builder dialog = new AlertDialog.Builder(this);
+            LayoutInflater factory = this.getLayoutInflater();
+            final View view = factory.inflate(R.layout.pick_image_dialog, null);
+            dialog.setView(view);
+            Bitmap myBitmap = BitmapFactory.decodeFile(file_path);
+            ImageView myImage = (ImageView) view.findViewById(R.id.originalImage);
+            myImage.setImageURI(imageUri);
+            dialog.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int which) {
+                    encryptImage(imageUri);
+                }
+            }).setNegativeButton("No", new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int which) {
+                }
+            }).setTitle("Decrypt this image?").show();
         }
     }
 
@@ -164,78 +191,44 @@ public class MainActivity extends Activity {
                 Log.d(TAG, "salt size:" + encryptedInfo[0].length);
                 Log.d(TAG, "iv size:" + encryptedInfo[1].length);
 
-                ByteArrayOutputStream bytesStream = writeEncryptedInfoToBuffer(encryptedInfo);
+                ByteArrayOutputStream bytesStream = UtilityFunctions.writeEncryptedInfoToBuffer(encryptedInfo);
 
                 imageSaltAndIvBytes = bytesStream.toByteArray();
 
                 Log.d(TAG, "imageSaltAndIvBytes length:" + imageSaltAndIvBytes.length);
 
-
                 int outputImageHeight = (int) Math.ceil(Math.sqrt(imageSaltAndIvBytes.length));
                 int outputImageWidth = outputImageHeight;
                 Bitmap bitmap = Bitmap.createBitmap(outputImageWidth, outputImageHeight, Bitmap.Config.ARGB_8888);
                 Canvas canvas = new Canvas(bitmap);
-                convertBytesToBitmap(outputImageHeight, outputImageWidth, canvas);
+                UtilityFunctions.convertBytesToBitmap(outputImageHeight, outputImageWidth, canvas, imageSaltAndIvBytes);
 
-                new saveImage(bitmap).invoke();
-
-            }
-
-            private void convertBytesToBitmap(int outputImageHeight, int outputImageWidth, Canvas c) {
-                int bI = 0;
-                Paint p = new Paint();
-                int i = 0, j = 0;
-                for (i = 0; i < outputImageHeight; i++) {
-                    for (j = 0; j < outputImageWidth; j++) {
-                        // store
-                        int colorInt;
-                        if (bI >= imageSaltAndIvBytes.length) {
-                            Random random = new Random();
-                            int randomInt = random.nextInt(255);
-                            colorInt = Color.rgb(randomInt, randomInt, randomInt);
-                        } else {
-                            int color = imageSaltAndIvBytes[bI++] + 128;
-                            colorInt = Color.rgb(color, color, color);
-                        }
-                        // Set the colour on the Paint;
-                        p.setColor(colorInt);
-                        // Draw the pixel;
-                        c.drawPoint(j, i, p);
-                    }
-                }
-
-                embedEncryptedInfoLength(c, p, i, j);
-            }
-
-            private void embedEncryptedInfoLength(Canvas c, Paint p, int i, int j) {
-                ByteBuffer b = ByteBuffer.allocate(4);
-                b.putInt(imageSaltAndIvBytes.length);
-
-                Log.d(TAG, imageSaltAndIvBytes.length + "");
-
-                byte[] result = b.array();
-                p.setColor(Color.rgb(result[3] + 128, result[3] + 128, result[3] + 128));
-                c.drawPoint(--j, i - 1, p);
-                p.setColor(Color.rgb(result[2] + 128, result[2] + 128, result[2] + 128));
-                c.drawPoint(--j, i - 1, p);
-                p.setColor(Color.rgb(result[1] + 128, result[1] + 128, result[1] + 128));
-                c.drawPoint(--j, i - 1, p);
-                p.setColor(Color.rgb(result[0] + 128, result[0] + 128, result[0] + 128));
-                c.drawPoint(--j, i - 1, p);
-            }
-
-            private ByteArrayOutputStream writeEncryptedInfoToBuffer(byte[][] encryptedInfo) {
-                ByteArrayOutputStream bytesStream = new ByteArrayOutputStream();
+                file_path = Environment.getExternalStorageDirectory().getAbsolutePath();
+                File dir = new File(file_path);
+                File file;
                 try {
-                    bytesStream.write(encryptedInfo[2]); // image bytes
-                    Log.d(TAG, "number of encrypted image bytes:" + encryptedInfo[2].length);
-                    bytesStream.write(encryptedInfo[0]); // salt
-                    bytesStream.write(encryptedInfo[1]); // iv
-                } catch (IOException e) {
-                    e.printStackTrace();
+                    // Create a File Object;
+                    file = new File(dir, "meh.png");
+                    // Ensure that the file exists and can be written to;
+                    if (!file.exists()) {
+                        file.createNewFile();
+                    }
+                    // Create a FileOutputStream Object;
+                    FileOutputStream fos = new FileOutputStream(file);
+                    // Write the Bitmap to the File, 100 is max quality but
+                    //        it is ignored for PNG since that is lossless;
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
+                    // Clear the output stream;
+                    fos.flush();
+                    // Close the output stream;
+                    fos.close();
+                } catch (Exception e) {
                 }
-                return bytesStream;
+
+
             }
+
+
         }.execute();
     }
 
@@ -271,40 +264,15 @@ public class MainActivity extends Activity {
 
         byte[] encryptedImageInfo = null;
         // read file
-        file_path = Environment.getExternalStorageDirectory().getAbsolutePath();
-        File dir = new File(file_path);
-        File file = new File(dir, "meh.png");
-        FileInputStream fin = null;
-        try {
-            fin = new FileInputStream(file);
-            encryptedImageInfo = new byte[(int) file.length()];
-            fin.read(encryptedImageInfo);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            try {
-                if (fin != null) {
-                    fin.close();
-                }
-            } catch (IOException ignored) {
-            }
-        }
+        encryptedImageInfo = readFile(encryptedImageInfo);
         Bitmap bmp = BitmapFactory.decodeByteArray(encryptedImageInfo, 0, encryptedImageInfo.length);
 
-        int numberofpixels = bmp.getWidth() * bmp.getHeight();
-        int[] pixels = new int[numberofpixels];
+        int numberOfPixels = bmp.getWidth() * bmp.getHeight();
+        int[] pixels = new int[numberOfPixels];
         bmp.getPixels(pixels, 0, bmp.getWidth(), 0, 0, bmp.getWidth(), bmp.getHeight());
 
 
-        byte[] imageBytesLength = new byte[4];
-        imageBytesLength[3] = (byte) (Color.red(pixels[numberofpixels - 1]) - 128);
-        imageBytesLength[2] = (byte) (Color.red(pixels[numberofpixels - 2]) - 128);
-        imageBytesLength[1] = (byte) (Color.red(pixels[numberofpixels - 3]) - 128);
-        imageBytesLength[0] = (byte) (Color.red(pixels[numberofpixels - 4]) - 128);
-
-        ByteBuffer wrapped = ByteBuffer.wrap(imageBytesLength); // big-endian by default
+        ByteBuffer wrapped = retrieveNumberOfUsefulBytes(numberOfPixels, pixels);
 
         assert encryptedImageInfo != null;
         int totalUsefulBytes = wrapped.getInt();
@@ -312,8 +280,6 @@ public class MainActivity extends Activity {
         int saltNumberOfBytes = 8;
         int imageNumberOfBytes = totalUsefulBytes - saltNumberOfBytes - ivNumberOfBytes;
 
-
-//        byte[] ivBytes = Arrays.copyOfRange(encryptedImageInfo, totalUsefulBytes - ivNumberOfBytes, totalUsefulBytes);
         byte[] ivBytes = retrieveBytesFromBitmap(pixels, totalUsefulBytes - ivNumberOfBytes, totalUsefulBytes);
         totalUsefulBytes -= ivNumberOfBytes;
         byte[] saltBytes = retrieveBytesFromBitmap(pixels, totalUsefulBytes - saltNumberOfBytes, totalUsefulBytes);
@@ -342,27 +308,43 @@ public class MainActivity extends Activity {
                 ImageView imgView = (ImageView) findViewById(R.id.decryptedImage);
                 imgView.setImageBitmap(bmp);
 
-                FileOutputStream out = null;
-                try {
-                    out = new FileOutputStream("/storage/emulated/0/output.jpg");
-                    bmp.compress(Bitmap.CompressFormat.JPEG, 100, out); // bmp is your Bitmap instance
-                    // PNG is a lossless format, the compression factor (100) is ignored
-                } catch (Exception e) {
-                    e.printStackTrace();
-                } finally {
-                    try {
-                        if (out != null) {
-                            out.close();
-                        }
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-
-
             }
         }.execute();
 
+    }
+
+    private ByteBuffer retrieveNumberOfUsefulBytes(int numberOfPixels, int[] pixels) {
+        byte[] imageBytesLength = new byte[4];
+        imageBytesLength[3] = (byte) (Color.red(pixels[numberOfPixels - 1]) - 128);
+        imageBytesLength[2] = (byte) (Color.red(pixels[numberOfPixels - 2]) - 128);
+        imageBytesLength[1] = (byte) (Color.red(pixels[numberOfPixels - 3]) - 128);
+        imageBytesLength[0] = (byte) (Color.red(pixels[numberOfPixels - 4]) - 128);
+
+        return ByteBuffer.wrap(imageBytesLength);
+    }
+
+    private byte[] readFile(byte[] encryptedImageInfo) {
+        file_path = Environment.getExternalStorageDirectory().getAbsolutePath();
+        File dir = new File(file_path);
+        File file = new File(dir, "meh.png");
+        FileInputStream fin = null;
+        try {
+            fin = new FileInputStream(file);
+            encryptedImageInfo = new byte[(int) file.length()];
+            fin.read(encryptedImageInfo);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                if (fin != null) {
+                    fin.close();
+                }
+            } catch (IOException ignored) {
+            }
+        }
+        return encryptedImageInfo;
     }
 
     private byte[] retrieveBytesFromBitmap(int[] pixels, int beginning, int end) {
@@ -465,7 +447,8 @@ public class MainActivity extends Activity {
             File file;
             try {
                 // Create a File Object;
-                file = new File(dir, "meh.png");
+
+                file = new File(dir, "encrypted_image.png");
                 // Ensure that the file exists and can be written to;
                 if (!file.exists()) {
                     file.createNewFile();
