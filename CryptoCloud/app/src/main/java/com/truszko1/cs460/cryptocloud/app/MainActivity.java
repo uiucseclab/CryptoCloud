@@ -4,12 +4,14 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.graphics.*;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
+import android.preference.PreferenceManager;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -71,6 +73,10 @@ public class MainActivity extends Activity {
         setContentView(R.layout.main);
         setProgressBarIndeterminateVisibility(false);
 
+
+        kickOutIfResumed();
+
+
         Intent intent = getIntent();
         password = intent.getStringExtra("password");
 
@@ -98,10 +104,10 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View view) {
                 Intent intent = new Intent();
-// Show only images, no videos or anything else
+                // Show only images, no videos or anything else
                 intent.setType("image/*");
                 intent.setAction(Intent.ACTION_GET_CONTENT);
-// Always show the chooser (if there are multiple options available)
+                // Always show the chooser (if there are multiple options available)
                 startActivityForResult(Intent.createChooser(intent, "Select Picture"), PICK_IMAGE_REQUEST);
             }
         });
@@ -112,6 +118,16 @@ public class MainActivity extends Activity {
                 decryptImage();
             }
         });
+    }
+
+    private void kickOutIfResumed() {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+// then you use
+        if (prefs.getBoolean("paused", false)) {
+            Intent intent = new Intent(MainActivity.this, LoginActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            MainActivity.this.startActivity(intent);
+        }
     }
 
     @Override
@@ -428,6 +444,20 @@ public class MainActivity extends Activity {
         decryptButton.setEnabled(enable);
     }
 
+    @Override
+    protected void onPause() {
+        super.onResume();
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        SharedPreferences.Editor editor = preferences.edit();
+        editor.putBoolean("paused", true); // value to store
+        editor.commit();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        kickOutIfResumed();
+    }
 
     abstract class Encryptor {
         SecretKey key;
@@ -482,3 +512,4 @@ public class MainActivity extends Activity {
         protected abstract void updateUi(byte[][] result);
     }
 }
+
