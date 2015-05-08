@@ -3,6 +3,7 @@ package com.truszko1.cs460.cryptocloud.app;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.*;
 import android.net.Uri;
@@ -11,6 +12,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.Window;
@@ -50,11 +52,13 @@ public class MainActivity extends Activity {
     ArrayList<String> imagesPath;
     byte[] paddedEncryptedBytes;
     String file_path;
+    private int PICK_IMAGE_REQUEST = 1;
     private ImageView originalImage;
     private Button encryptButton;
     private Button decryptButton;
     private Encryptor encryptor;
     private Bitmap currentBitmap = null;
+    private String password;
 
     /**
      * Called when the activity is first created.
@@ -90,7 +94,12 @@ public class MainActivity extends Activity {
         encryptButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
-                encryptImage();
+                Intent intent = new Intent();
+// Show only images, no videos or anything else
+                intent.setType("image/*");
+                intent.setAction(Intent.ACTION_GET_CONTENT);
+// Always show the chooser (if there are multiple options available)
+                startActivityForResult(Intent.createChooser(intent, "Select Picture"), PICK_IMAGE_REQUEST);
             }
         });
 
@@ -102,32 +111,48 @@ public class MainActivity extends Activity {
         });
     }
 
-    private void encryptImage() {
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
 
-        final Random random = new Random();
-        final int count = imagesPath.size();
-        int number = random.nextInt(count);
-        String path = imagesPath.get(number);
-        if (currentBitmap != null) {
-            currentBitmap.recycle();
+        if (requestCode == PICK_IMAGE_REQUEST && resultCode == RESULT_OK && data != null && data.getData() != null) {
+
+            final Uri imageUri = data.getData();
+
+            AlertDialog.Builder dialog = new AlertDialog.Builder(this);
+            LayoutInflater factory = this.getLayoutInflater();
+            final View view = factory.inflate(R.layout.image_dialog, null);
+            dialog.setView(view);
+            Bitmap myBitmap = BitmapFactory.decodeFile(file_path);
+            ImageView myImage = (ImageView) view.findViewById(R.id.originalImage);
+            myImage.setImageURI(imageUri);
+            dialog.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int which) {
+                    // continue with delete
+                    encryptImage(imageUri);
+                }
+            }).setNegativeButton("No", new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int which) {
+                    // do nothing
+                }
+            }).setTitle("Encrypt this image and store it in Dropbox?").show();
         }
-        currentBitmap = BitmapFactory.decodeFile(path);
-        originalImage.setImageBitmap(currentBitmap);
+    }
 
-        File file = new File(path);
-        FileInputStream fileInputStream = null;
+    private void encryptImage(Uri imageUri) {
+        // open the file
+        InputStream fileInputStream = null;
         try {
-            fileInputStream = new FileInputStream(file);
+            fileInputStream = getContentResolver().openInputStream(imageUri);
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
 
+        // read the file
         ByteArrayOutputStream byteBuffer = new ByteArrayOutputStream();
-
         // this is storage overwritten on each iteration with bytes
         int bufferSize = 1024;
         byte[] buffer = new byte[bufferSize];
-
         // we need to know how may bytes were read to write them to the byteBuffer
         int len;
         try {
@@ -139,7 +164,7 @@ public class MainActivity extends Activity {
             e.printStackTrace();
         }
 
-        // and then we can return your byte array.
+        // get the bytes corresponding to our imgage
         final byte[] originalImageBytes = byteBuffer.toByteArray();
 
         final long[] start = new long[1];
@@ -149,6 +174,7 @@ public class MainActivity extends Activity {
             @Override
             protected byte[][] doCrypto() {
                 start[0] = System.currentTimeMillis();
+                // encrypt the image
                 return encryptor.encrypt(originalImageBytes, "password1234");
             }
 
@@ -182,39 +208,20 @@ public class MainActivity extends Activity {
 
                             @Override
                             public void onClick(DialogInterface arg0, int arg1) {
-//                                file_path = Environment.getExternalStorageDirectory().getAbsolutePath();
-//                                File dir = new File(file_path);
-//                                File file = new File(dir, "meh.png");
-//                                file_path = file.getAbsolutePath();
-//                                BufferedOutputStream bos;
-//                                try {
-//                                    bos = new BufferedOutputStream(new FileOutputStream(file));
-//                                    bos.write(paddedEncryptedBytes);
-//                                    bos.flush();
-//                                    bos.close();
-//                                } catch (FileNotFoundException e) {
-//                                    e.printStackTrace();
-//                                } catch (IOException e) {
-//                                    e.printStackTrace();
-//                                }
 
                                 int height = (int) Math.ceil(Math.sqrt(paddedEncryptedBytes.length));
                                 int width = height;
                                 Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-                                // Create a Canvas Object;
                                 Canvas c = new Canvas(bitmap);
-// Value to index the byte[];
                                 int bI = 0;
-// Paint Object for drawing the pixel;
                                 Paint p = new Paint();
-// Iterate through the pixel rows;
                                 int i = 0, j = 0;
                                 for (i = 0; i < height; i++) {
-                                    // Iterate through the pixels in the row;
                                     for (j = 0; j < width; j++) {
                                         // store
                                         int colorInt;
                                         if (bI >= paddedEncryptedBytes.length) {
+                                            Random random = new Random();
                                             int randomInt = random.nextInt(255);
                                             colorInt = Color.rgb(randomInt, randomInt, randomInt);
                                         } else {
@@ -229,7 +236,6 @@ public class MainActivity extends Activity {
                                 }
 
                                 ByteBuffer b = ByteBuffer.allocate(4);
-//b.order(ByteOrder.BIG_ENDIAN); // optional, the initial order of a byte buffer is always BIG_ENDIAN.
                                 b.putInt(paddedEncryptedBytes.length);
 
                                 Log.d(TAG, paddedEncryptedBytes.length + "");
