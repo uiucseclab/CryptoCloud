@@ -26,7 +26,7 @@ The encrypted image can only be successfully decrypted if the user provides corr
 The times of encryption/decryption always took less than two seconds for large-sized images (1900x1200), which means the user would not have to wait a long time. 
 
 ![GitHub Logo](/screenshots/1.png)
-Format: ![Alt Text](url)
+user enters password
 
 ![GitHub Logo](/screenshots/2.png)
 Format: ![Alt Text](url)
