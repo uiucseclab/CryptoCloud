@@ -79,7 +79,8 @@ public class Crypto {
             byte[] plaintext = cipher.doFinal(cipherBytes);
             return new byte[][]{plaintext};
         } catch (GeneralSecurityException e) {
-            throw new RuntimeException(e);
+//            throw new RuntimeException(e);
+            return null;
         }
     }
 

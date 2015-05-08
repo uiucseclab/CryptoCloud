@@ -24,7 +24,6 @@ import android.widget.Toast;
 import javax.crypto.SecretKey;
 import java.io.*;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 
 public class MainActivity extends Activity {
 
@@ -49,16 +48,12 @@ public class MainActivity extends Activity {
             return Crypto.decryptPbkdf2(encryptedInfo, password);
         }
     };
-    ArrayList<String> imagesPath;
     byte[] imageSaltAndIvBytes;
     String file_path;
     private int PICK_IMAGE_TO_ENCRYPT_REQUEST = 1;
-    private int PICK_IMAGE_TO_DECRYPT_REQUEST = 2;
-    private ImageView originalImage;
     private Button encryptButton;
     private Button decryptButton;
     private Encryptor encryptor;
-    private Bitmap currentBitmap = null;
     private String password;
 
     /**
@@ -77,7 +72,6 @@ public class MainActivity extends Activity {
 
         encryptor = PBKDF2_ENCRYPTOR;
 
-        originalImage = (ImageView) findViewById(R.id.image);
         encryptButton = (Button) findViewById(R.id.encrypt_button);
         decryptButton = (Button) findViewById(R.id.decrypt_button);
 
@@ -183,7 +177,7 @@ public class MainActivity extends Activity {
                     fos.flush();
                     // Close the output stream;
                     fos.close();
-                } catch (Exception e) {
+                } catch (Exception ignored) {
                 }
                 ImageView imgView = (ImageView) findViewById(R.id.image);
                 imgView.setImageBitmap(bitmap);
@@ -225,9 +219,7 @@ public class MainActivity extends Activity {
 
     private void decryptImage() {
 
-        byte[] encryptedImageInfo = null;
-        // read file
-        encryptedImageInfo = readFile();
+        byte[] encryptedImageInfo = readFile();
         Bitmap bmp = BitmapFactory.decodeByteArray(encryptedImageInfo, 0, encryptedImageInfo.length);
 
         int numberOfPixels = bmp.getWidth() * bmp.getHeight();
@@ -237,7 +229,6 @@ public class MainActivity extends Activity {
 
         ByteBuffer wrapped = retrieveNumberOfUsefulBytes(numberOfPixels, pixels);
 
-        assert encryptedImageInfo != null;
         int totalUsefulBytes = wrapped.getInt();
         int ivNumberOfBytes = 16;
         int saltNumberOfBytes = 8;
@@ -262,6 +253,12 @@ public class MainActivity extends Activity {
             }
 
             protected void updateUi(byte[][] decryptedInfo) {
+                if (decryptedInfo == null) {
+                    Toast.makeText(MainActivity.this,
+                            "Could not decode the image.", Toast.LENGTH_LONG)
+                            .show();
+                    return;
+                }
                 byte[] imageBytes = decryptedInfo[0];
 
                 Log.d(TAG, "decrypted bytes" + imageBytes.length + "");
@@ -287,7 +284,7 @@ public class MainActivity extends Activity {
                     fos.flush();
                     // Close the output stream;
                     fos.close();
-                } catch (Exception e) {
+                } catch (Exception ignored) {
                 }
 
                 ImageView imgView = (ImageView) findViewById(R.id.image);
@@ -400,38 +397,5 @@ public class MainActivity extends Activity {
         protected abstract void updateUi(byte[][] result);
     }
 
-    private class saveImage {
-        private Bitmap bitmap;
-
-        public saveImage(Bitmap bitmap) {
-            this.bitmap = bitmap;
-        }
-
-        public void invoke() {
-            file_path = Environment.getExternalStorageDirectory().getAbsolutePath();
-            File dir = new File(file_path);
-            File file;
-            try {
-                // Create a File Object;
-
-                file = new File(dir, "encrypted_image.png");
-                // Ensure that the file exists and can be written to;
-                if (!file.exists()) {
-                    file.createNewFile();
-                }
-                // Create a FileOutputStream Object;
-                FileOutputStream fos = new FileOutputStream(file);
-                // Write the Bitmap to the File, 100 is max quality but
-                //        it is ignored for PNG since that is lossless;
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
-                // Clear the output stream;
-                fos.flush();
-                // Close the output stream;
-                fos.close();
-
-            } catch (Exception e) {
-            }
-        }
-    }
 }
 
