@@ -1,11 +1,9 @@
 package com.truszko1.cs460.cryptocloud.app;
 
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.graphics.drawable.AnimationDrawable;
 import android.os.Bundle;
 import android.os.Handler;
-import android.preference.PreferenceManager;
 import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -45,11 +43,6 @@ public class LoginActivity extends ActionBarActivity {
                         handler.postDelayed(new Runnable() {
                             @Override
                             public void run() {
-                                SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
-                                SharedPreferences.Editor editor = preferences.edit();
-                                editor.putBoolean("paused", false); // value to store
-                                editor.commit();
-
                                 Intent intent = new Intent(LoginActivity.this, MainActivity.class);
                                 intent.putExtra("password", password.getText().toString());
                                 intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
