@@ -7,7 +7,7 @@
               android:layout_height="match_parent">
 
     <ImageView
-            android:id="@+id/originalImage"
+            android:id="@+id/image"
             android:layout_width="wrap_content"
             android:layout_height="250dp"/>
 

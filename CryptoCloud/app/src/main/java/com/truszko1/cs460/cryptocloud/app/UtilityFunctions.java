@@ -13,7 +13,7 @@ import java.util.Random;
  * Created by truszko1 on 5/7/15.
  */
 public class UtilityFunctions {
-    public static void convertBytesToBitmap(int outputImageHeight, int outputImageWidth, Canvas c, byte[] imageSaltAndIvBytes) {
+    public static void paintBytesOntoCanvas(int outputImageHeight, int outputImageWidth, Canvas c, byte[] imageSaltAndIvBytes) {
         int bI = 0;
         Paint p = new Paint();
         int i = 0, j = 0;
