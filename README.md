@@ -47,6 +47,7 @@ the resulting decrypted image
 when password is wrong
 
 resources:
+
 http://nelenkov.blogspot.com/2012/04/using-password-based-encryption-on.html
 https://code.google.com/p/simple-android-instant-messaging-application/
 http://www.developer.com/ws/android/encrypting-with-android-cryptography-api.html
