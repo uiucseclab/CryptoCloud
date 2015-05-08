@@ -71,6 +71,9 @@ public class MainActivity extends Activity {
         setContentView(R.layout.main);
         setProgressBarIndeterminateVisibility(false);
 
+        Intent intent = getIntent();
+        password = intent.getStringExtra("password");
+
         encryptor = PBKDF2_ENCRYPTOR;
 
         originalImage = (ImageView) findViewById(R.id.originalImage);
