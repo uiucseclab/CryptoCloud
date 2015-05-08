@@ -29,19 +29,19 @@ The times of encryption/decryption always took less than two seconds for large-s
 user enters password
 
 ![GitHub Logo](/screenshots/2.png)
-Format: ![Alt Text](url)
+main screen
 
 ![GitHub Logo](/screenshots/3.png)
-Format: ![Alt Text](url)
+user chooses an image to encrypt
 
 ![GitHub Logo](/screenshots/4.png)
-Format: ![Alt Text](url)
+user confirms the selection
 
 ![GitHub Logo](/screenshots/5.png)
-Format: ![Alt Text](url)
+the resulting encrypted image
 
 ![GitHub Logo](/screenshots/6.png)
-Format: ![Alt Text](url)
+the resulting decrypted image
 
 ![GitHub Logo](/screenshots/7.png)
-Format: ![Alt Text](url)
+when password is wrong
